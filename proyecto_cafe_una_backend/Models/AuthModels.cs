@@ -6,6 +6,11 @@ public class AuthCredentials
     public string Password { get; set; } = string.Empty;
 }
 
+public class LoginResponse
+{
+    public string Token { get; set; } = string.Empty;
+}
+
 public class RegisterRequest
 {
     public string Nombre { get; set; } = string.Empty;

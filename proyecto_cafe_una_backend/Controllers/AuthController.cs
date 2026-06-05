@@ -1,4 +1,7 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using proyecto_cafe_una_backend.Entities;
+using proyecto_cafe_una_backend.Helpers;
 using proyecto_cafe_una_backend.Models;
 using proyecto_cafe_una_backend.Services;
 
@@ -6,8 +9,27 @@ namespace proyecto_cafe_una_backend.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AuthService authService) : ControllerBase
+public class AuthController(AuthService authService, JwtSettings jwtSettings) : ControllerBase
 {
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<ActionResult<LoginResponse>> Login([FromBody] AuthCredentials credentials)
+    {
+        if (string.IsNullOrWhiteSpace(credentials.Identifier) || string.IsNullOrWhiteSpace(credentials.Password))
+        {
+            return BadRequest("Usuario y contraseña son requeridos.");
+        }
+
+        var usuario = await authService.AutenticarAsync(credentials.Identifier, credentials.Password);
+        if (usuario is null)
+        {
+            return Unauthorized();
+        }
+
+        var token = TokenGenerator.GenerateToken(usuario, jwtSettings);
+        return Ok(new LoginResponse { Token = token });
+    }
+
     [HttpPost("register")]
     public async Task<ActionResult> Register([FromBody] RegisterRequest request)
     {
