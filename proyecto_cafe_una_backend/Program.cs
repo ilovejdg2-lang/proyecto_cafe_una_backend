@@ -59,6 +59,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 builder.Services.AddAuthorization();
 
 builder.Services.AddSingleton<UsuariosService>();
+builder.Services.AddSingleton<VoluntariadoService>();
 builder.Services.AddSingleton<AuthService>();
 
 var app = builder.Build();
