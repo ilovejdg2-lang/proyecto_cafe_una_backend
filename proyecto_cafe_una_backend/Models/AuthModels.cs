@@ -1,4 +1,4 @@
-namespace proyecto_cafe_una_backend.Entities;
+namespace proyecto_cafe_una_backend.Models;
 
 public class AuthCredentials
 {
@@ -29,14 +29,6 @@ public class ForgotPasswordResult
     public bool UsuarioEncontrado { get; set; }
     public string? DevToken { get; set; }
     public bool EmailEnviado { get; set; }
-}
-
-public class PasswordResetEntry
-{
-    public string Token { get; set; } = string.Empty;
-    public string Correo { get; set; } = string.Empty;
-    public DateTime ExpiraEnUtc { get; set; }
-    public bool Usado { get; set; }
 }
 
 public class SmtpSettings
