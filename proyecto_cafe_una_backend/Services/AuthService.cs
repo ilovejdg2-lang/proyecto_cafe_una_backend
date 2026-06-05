@@ -15,6 +15,22 @@ public class AuthService(
     private readonly TimeSpan _tokenLifetime = TimeSpan.FromMinutes(30);
     private int _nextResetId = 1;
 
+    public async Task<Usuario?> AutenticarAsync(string identifier, string password)
+    {
+        if (string.IsNullOrWhiteSpace(identifier) || string.IsNullOrWhiteSpace(password))
+        {
+            return null;
+        }
+
+        var usuario = await usuariosService.ObtenerPorNombreOCorreoAsync(identifier);
+        if (usuario is null || !string.Equals(usuario.Estado, "activo", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        return usuario.PasswordHash == password ? usuario : null;
+    }
+
     public async Task<Usuario> RegistrarAsync(RegisterRequest request)
     {
         var nombre = request.Nombre.Trim();
