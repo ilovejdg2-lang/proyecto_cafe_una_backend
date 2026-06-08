@@ -1,112 +1,60 @@
+using Microsoft.EntityFrameworkCore;
+using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
 using proyecto_cafe_una_backend.Models;
 
 namespace proyecto_cafe_una_backend.Services;
 
-public class GaleriaInstitucionalService
+public class GaleriaInstitucionalService(ApplicationDbContext db)
 {
-    private readonly List<GaleriaInstitucionalItem> _items = [];
-    private readonly SemaphoreSlim _mutex = new(1, 1);
-
-    public async Task<List<GaleriaInstitucionalItem>> ObtenerTodosAsync()
-    {
-        await _mutex.WaitAsync();
-        try
-        {
-            return _items.Select(Copiar).OrderBy(item => item.Orden).ThenBy(item => item.Id).ToList();
-        }
-        finally
-        {
-            _mutex.Release();
-        }
-    }
+    public async Task<List<GaleriaInstitucionalItem>> ObtenerTodosAsync() =>
+        await db.GaleriaInstitucional
+            .AsNoTracking()
+            .OrderBy(item => item.Orden)
+            .ThenBy(item => item.Id)
+            .ToListAsync();
 
     public async Task<GaleriaInstitucionalItem> CrearAsync(CrearGaleriaInstitucionalItemRequest request)
     {
-        await _mutex.WaitAsync();
-        try
+        var maxOrden = await db.GaleriaInstitucional.MaxAsync(g => (int?)g.Orden) ?? 0;
+        var item = new GaleriaInstitucionalItem
         {
-            var item = new GaleriaInstitucionalItem
-            {
-                Id = ObtenerSiguienteId(),
-                Title = request.Title.Trim(),
-                Image = request.Image.Trim(),
-                Orden = request.Orden ?? (_items.Count == 0 ? 1 : _items.Max(g => g.Orden) + 1)
-            };
+            Title = request.Title.Trim(),
+            Image = request.Image.Trim(),
+            Orden = request.Orden ?? (maxOrden + 1)
+        };
 
-            _items.Add(item);
-            return Copiar(item);
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        db.GaleriaInstitucional.Add(item);
+        await db.SaveChangesAsync();
+        return item;
     }
 
     public async Task<GaleriaInstitucionalItem?> ActualizarAsync(long id, ActualizarGaleriaInstitucionalItemRequest cambios)
     {
-        await _mutex.WaitAsync();
-        try
+        var actual = await db.GaleriaInstitucional.FirstOrDefaultAsync(item => item.Id == id);
+        if (actual is null)
         {
-            var index = _items.FindIndex(item => item.Id == id);
-            if (index < 0)
-            {
-                return null;
-            }
-
-            var actual = _items[index];
-
-            if (!string.IsNullOrWhiteSpace(cambios.Title))
-            {
-                actual.Title = cambios.Title.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(cambios.Image))
-            {
-                actual.Image = cambios.Image.Trim();
-            }
-
-            if (cambios.Orden.HasValue)
-            {
-                actual.Orden = cambios.Orden.Value;
-            }
-
-            return Copiar(actual);
+            return null;
         }
-        finally
-        {
-            _mutex.Release();
-        }
+
+        if (!string.IsNullOrWhiteSpace(cambios.Title)) actual.Title = cambios.Title.Trim();
+        if (!string.IsNullOrWhiteSpace(cambios.Image)) actual.Image = cambios.Image.Trim();
+        if (cambios.Orden.HasValue) actual.Orden = cambios.Orden.Value;
+
+        await db.SaveChangesAsync();
+        return actual;
     }
 
     public async Task<bool> EliminarAsync(long id)
     {
-        await _mutex.WaitAsync();
-        try
+        var item = await db.GaleriaInstitucional.FirstOrDefaultAsync(g => g.Id == id);
+        if (item is null)
         {
-            var index = _items.FindIndex(item => item.Id == id);
-            if (index < 0)
-            {
-                return false;
-            }
+            return false;
+        }
 
-            _items.RemoveAt(index);
-            return true;
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        db.GaleriaInstitucional.Remove(item);
+        await db.SaveChangesAsync();
+        return true;
     }
-
-    private long ObtenerSiguienteId() =>
-        _items.Count == 0 ? 1 : _items.Max(item => item.Id) + 1;
-
-    private static GaleriaInstitucionalItem Copiar(GaleriaInstitucionalItem item) => new()
-    {
-        Id = item.Id,
-        Title = item.Title,
-        Image = item.Image,
-        Orden = item.Orden
-    };
 }

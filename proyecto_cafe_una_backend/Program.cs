@@ -1,10 +1,15 @@
 using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
 using proyecto_cafe_una_backend.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+    ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection es requerido.");
 
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>()
     ?? throw new InvalidOperationException("JwtSettings es requerido.");
@@ -58,18 +63,43 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 
-builder.Services.AddSingleton<UsuariosService>();
-builder.Services.AddSingleton<VoluntariadoService>();
-builder.Services.AddSingleton<HeroService>();
-builder.Services.AddSingleton<TextoInstitucionalService>();
-builder.Services.AddSingleton<GaleriaInstitucionalService>();
-builder.Services.AddSingleton<InformacionFooterService>();
-builder.Services.AddSingleton<InformacionNavbarService>();
-builder.Services.AddSingleton<EnlaceSitioService>();
-builder.Services.AddSingleton<ProductosService>();
-builder.Services.AddSingleton<AuthService>();
+builder.Services.AddDbContext<ApplicationDbContext>(options =>
+    options.UseNpgsql(connectionString));
+
+builder.Services.AddScoped<UsuariosService>();
+builder.Services.AddScoped<VoluntariadoService>();
+builder.Services.AddScoped<HeroService>();
+builder.Services.AddScoped<TextoInstitucionalService>();
+builder.Services.AddScoped<GaleriaInstitucionalService>();
+builder.Services.AddScoped<InformacionFooterService>();
+builder.Services.AddScoped<InformacionNavbarService>();
+builder.Services.AddScoped<EnlaceSitioService>();
+builder.Services.AddScoped<ProductosService>();
+builder.Services.AddScoped<AuthService>();
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+
+    try
+    {
+        await db.Database.MigrateAsync();
+        await DatabaseSeeder.SeedAsync(db);
+
+        if (await db.Database.CanConnectAsync())
+        {
+            logger.LogInformation("Conexion a Supabase establecida correctamente.");
+        }
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "No se pudo conectar o migrar la base de datos de Supabase.");
+        throw;
+    }
+}
 
 if (app.Environment.IsDevelopment())
 {

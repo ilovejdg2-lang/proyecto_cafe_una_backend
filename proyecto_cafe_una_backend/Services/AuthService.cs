@@ -1,19 +1,19 @@
-using proyecto_cafe_una_backend.Entities;
-using proyecto_cafe_una_backend.Models;
 using System.Net;
 using System.Net.Mail;
+using Microsoft.EntityFrameworkCore;
+using proyecto_cafe_una_backend.Data;
+using proyecto_cafe_una_backend.Entities;
+using proyecto_cafe_una_backend.Models;
 
 namespace proyecto_cafe_una_backend.Services;
 
 public class AuthService(
     UsuariosService usuariosService,
+    ApplicationDbContext db,
     IWebHostEnvironment environment,
     IConfiguration configuration)
 {
-    private readonly List<PasswordResetEntry> _resetEntries = [];
-    private readonly SemaphoreSlim _mutex = new(1, 1);
     private readonly TimeSpan _tokenLifetime = TimeSpan.FromMinutes(30);
-    private int _nextResetId = 1;
 
     public async Task<Usuario?> AutenticarAsync(string identifier, string password)
     {
@@ -81,38 +81,37 @@ public class AuthService(
             return new ForgotPasswordResult { UsuarioEncontrado = false };
         }
 
-        await _mutex.WaitAsync();
-        try
-        {
-            var now = DateTime.UtcNow;
-            _resetEntries.RemoveAll(entry =>
+        var now = DateTime.UtcNow;
+        var entradasPrevias = await db.PasswordResetEntries
+            .Where(entry =>
                 entry.Usado ||
                 entry.ExpiraEnUtc <= now ||
-                entry.Correo.Equals(usuario.Correo, StringComparison.OrdinalIgnoreCase)
-            );
+                entry.Correo.ToLower() == usuario.Correo.ToLower())
+            .ToListAsync();
 
-            var token = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
-            _resetEntries.Add(new PasswordResetEntry
-            {
-                Id = _nextResetId++,
-                Token = token,
-                Correo = usuario.Correo,
-                ExpiraEnUtc = now.Add(_tokenLifetime),
-                Usado = false
-            });
-
-            var emailEnviado = await EnviarCorreoRecuperacionAsync(usuario.Correo, usuario.Nombre, token);
-            return new ForgotPasswordResult
-            {
-                UsuarioEncontrado = true,
-                DevToken = environment.IsDevelopment() ? token : null,
-                EmailEnviado = emailEnviado
-            };
-        }
-        finally
+        if (entradasPrevias.Count > 0)
         {
-            _mutex.Release();
+            db.PasswordResetEntries.RemoveRange(entradasPrevias);
         }
+
+        var token = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        db.PasswordResetEntries.Add(new PasswordResetEntry
+        {
+            Token = token,
+            Correo = usuario.Correo,
+            ExpiraEnUtc = now.Add(_tokenLifetime),
+            Usado = false
+        });
+
+        await db.SaveChangesAsync();
+
+        var emailEnviado = await EnviarCorreoRecuperacionAsync(usuario.Correo, usuario.Nombre, token);
+        return new ForgotPasswordResult
+        {
+            UsuarioEncontrado = true,
+            DevToken = environment.IsDevelopment() ? token : null,
+            EmailEnviado = emailEnviado
+        };
     }
 
     public async Task<bool> RestablecerPasswordAsync(ResetPasswordRequest request)
@@ -124,25 +123,15 @@ public class AuthService(
             return false;
         }
 
-        await _mutex.WaitAsync();
-        PasswordResetEntry? entry;
-        try
-        {
-            var now = DateTime.UtcNow;
-            entry = _resetEntries.FirstOrDefault(e =>
-                !e.Usado &&
-                e.Token.Equals(token, StringComparison.OrdinalIgnoreCase) &&
-                e.ExpiraEnUtc > now
-            );
+        var now = DateTime.UtcNow;
+        var entry = await db.PasswordResetEntries.FirstOrDefaultAsync(e =>
+            !e.Usado &&
+            e.Token.ToUpper() == token &&
+            e.ExpiraEnUtc > now);
 
-            if (entry is null)
-            {
-                return false;
-            }
-        }
-        finally
+        if (entry is null)
         {
-            _mutex.Release();
+            return false;
         }
 
         var actualizado = await usuariosService.ActualizarPasswordPorCorreoAsync(entry.Correo, nuevaPassword);
@@ -151,16 +140,9 @@ public class AuthService(
             return false;
         }
 
-        await _mutex.WaitAsync();
-        try
-        {
-            entry.Usado = true;
-            return true;
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        entry.Usado = true;
+        await db.SaveChangesAsync();
+        return true;
     }
 
     private async Task<bool> EnviarCorreoRecuperacionAsync(string destinatario, string nombre, string token)

@@ -1,9 +1,11 @@
+using Microsoft.EntityFrameworkCore;
+using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
 using proyecto_cafe_una_backend.Models;
 
 namespace proyecto_cafe_una_backend.Services;
 
-public class TextoInstitucionalService
+public class TextoInstitucionalService(ApplicationDbContext db)
 {
     private static readonly HashSet<string> ClavesValidas = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -11,13 +13,6 @@ public class TextoInstitucionalService
         "mission",
         "vision"
     };
-
-    private readonly Dictionary<string, TextoInstitucional> _textos = ClavesValidas.ToDictionary(
-        clave => clave,
-        _ => new TextoInstitucional(),
-        StringComparer.OrdinalIgnoreCase
-    );
-    private readonly SemaphoreSlim _mutex = new(1, 1);
 
     public bool EsClaveValida(string clave) => ClavesValidas.Contains(clave);
 
@@ -28,15 +23,11 @@ public class TextoInstitucionalService
             return null;
         }
 
-        await _mutex.WaitAsync();
-        try
-        {
-            return Copiar(_textos[clave]);
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        var texto = await db.TextosInstitucionales
+            .AsNoTracking()
+            .FirstOrDefaultAsync(t => t.Clave == clave.ToLowerInvariant());
+
+        return texto is null ? null : Copiar(texto);
     }
 
     public async Task<TextoInstitucional?> ActualizarAsync(string clave, ActualizarTextoInstitucionalRequest cambios)
@@ -46,31 +37,31 @@ public class TextoInstitucionalService
             return null;
         }
 
-        await _mutex.WaitAsync();
-        try
+        var claveNormalizada = clave.ToLowerInvariant();
+        var actual = await db.TextosInstitucionales.FirstOrDefaultAsync(t => t.Clave == claveNormalizada);
+        if (actual is null)
         {
-            var actual = _textos[clave];
-
-            if (!string.IsNullOrWhiteSpace(cambios.Title))
-            {
-                actual.Title = cambios.Title.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(cambios.Description))
-            {
-                actual.Description = cambios.Description.Trim();
-            }
-
-            return Copiar(actual);
+            actual = new TextoInstitucional { Clave = claveNormalizada };
+            db.TextosInstitucionales.Add(actual);
         }
-        finally
+
+        if (!string.IsNullOrWhiteSpace(cambios.Title))
         {
-            _mutex.Release();
+            actual.Title = cambios.Title.Trim();
         }
+
+        if (!string.IsNullOrWhiteSpace(cambios.Description))
+        {
+            actual.Description = cambios.Description.Trim();
+        }
+
+        await db.SaveChangesAsync();
+        return Copiar(actual);
     }
 
     private static TextoInstitucional Copiar(TextoInstitucional texto) => new()
     {
+        Clave = texto.Clave,
         Title = texto.Title,
         Description = texto.Description
     };
