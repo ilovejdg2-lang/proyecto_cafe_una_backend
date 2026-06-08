@@ -66,6 +66,7 @@ builder.Services.AddSingleton<GaleriaInstitucionalService>();
 builder.Services.AddSingleton<InformacionFooterService>();
 builder.Services.AddSingleton<InformacionNavbarService>();
 builder.Services.AddSingleton<EnlaceSitioService>();
+builder.Services.AddSingleton<ProductosService>();
 builder.Services.AddSingleton<AuthService>();
 
 var app = builder.Build();
