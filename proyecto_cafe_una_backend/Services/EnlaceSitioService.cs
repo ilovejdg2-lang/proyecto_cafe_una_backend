@@ -5,7 +5,7 @@ namespace proyecto_cafe_una_backend.Services;
 
 public class EnlaceSitioService
 {
-    private readonly List<EnlaceSitio> _enlaces = [];
+    private readonly List<EnlaceSitio> _enlaces = CrearEnlacesPorDefecto();
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
     public async Task<List<EnlaceSitio>> ObtenerTodosAsync(string? seccion = null)
@@ -120,6 +120,17 @@ public class EnlaceSitioService
 
     private long ObtenerSiguienteId() =>
         _enlaces.Count == 0 ? 1 : _enlaces.Max(e => e.Id) + 1;
+
+    private static List<EnlaceSitio> CrearEnlacesPorDefecto() =>
+    [
+        new EnlaceSitio { Id = 1, Etiqueta = "Sobre nosotros", Ruta = "/AboutUs", Seccion = "Navbar", Orden = 1 },
+        new EnlaceSitio { Id = 2, Etiqueta = "Productos", Ruta = "/productos", Seccion = "Navbar", Orden = 2 },
+        new EnlaceSitio { Id = 3, Etiqueta = "Voluntariado", Ruta = "/voluntariado/solicitar", Seccion = "Navbar", Orden = 3 },
+        new EnlaceSitio { Id = 4, Etiqueta = "Nuestra Historia", Ruta = "/AboutUs", Seccion = "FooterExplorar", Orden = 1 },
+        new EnlaceSitio { Id = 5, Etiqueta = "Tienda Online", Ruta = "/productos", Seccion = "FooterExplorar", Orden = 2 },
+        new EnlaceSitio { Id = 6, Etiqueta = "Voluntariado", Ruta = "/voluntariado/solicitar", Seccion = "FooterExplorar", Orden = 3 },
+        new EnlaceSitio { Id = 7, Etiqueta = "Mi Cuenta", Ruta = "/login", Seccion = "FooterExplorar", Orden = 4 }
+    ];
 
     private static EnlaceSitio Copiar(EnlaceSitio enlace) => new()
     {
