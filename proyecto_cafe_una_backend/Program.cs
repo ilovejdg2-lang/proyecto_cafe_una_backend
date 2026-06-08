@@ -64,7 +64,6 @@ builder.Services.AddSingleton<HeroService>();
 builder.Services.AddSingleton<TextoInstitucionalService>();
 builder.Services.AddSingleton<GaleriaInstitucionalService>();
 builder.Services.AddSingleton<InformacionFooterService>();
-builder.Services.AddSingleton<TarjetaInicioService>();
 builder.Services.AddSingleton<EnlaceSitioService>();
 builder.Services.AddSingleton<AuthService>();
 
