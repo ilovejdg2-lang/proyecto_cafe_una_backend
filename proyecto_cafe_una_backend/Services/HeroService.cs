@@ -1,61 +1,63 @@
+using Microsoft.EntityFrameworkCore;
+using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
 using proyecto_cafe_una_backend.Models;
 
 namespace proyecto_cafe_una_backend.Services;
 
-public class HeroService
+public class HeroService(ApplicationDbContext db)
 {
-    private readonly HeroPrincipal _hero = new();
-    private readonly SemaphoreSlim _mutex = new(1, 1);
+    private const int SingletonId = 1;
 
     public async Task<HeroPrincipal> ObtenerAsync()
     {
-        await _mutex.WaitAsync();
-        try
+        var hero = await db.HeroPrincipal.AsNoTracking().FirstOrDefaultAsync(h => h.Id == SingletonId);
+        if (hero is null)
         {
-            return Copiar(_hero);
+            hero = new HeroPrincipal { Id = SingletonId };
+            db.HeroPrincipal.Add(hero);
+            await db.SaveChangesAsync();
         }
-        finally
-        {
-            _mutex.Release();
-        }
+
+        return Copiar(hero);
     }
 
     public async Task<HeroPrincipal> ActualizarAsync(ActualizarHeroRequest cambios)
     {
-        await _mutex.WaitAsync();
-        try
+        var hero = await db.HeroPrincipal.FirstOrDefaultAsync(h => h.Id == SingletonId);
+        if (hero is null)
         {
-            if (!string.IsNullOrWhiteSpace(cambios.Title))
-            {
-                _hero.Title = cambios.Title.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(cambios.Subtitle))
-            {
-                _hero.Subtitle = cambios.Subtitle.Trim();
-            }
-
-            if (cambios.ButtonText is not null)
-            {
-                _hero.ButtonText = cambios.ButtonText.Trim();
-            }
-
-            if (cambios.BackgroundImage is not null)
-            {
-                _hero.BackgroundImage = cambios.BackgroundImage.Trim();
-            }
-
-            return Copiar(_hero);
+            hero = new HeroPrincipal { Id = SingletonId };
+            db.HeroPrincipal.Add(hero);
         }
-        finally
+
+        if (!string.IsNullOrWhiteSpace(cambios.Title))
         {
-            _mutex.Release();
+            hero.Title = cambios.Title.Trim();
         }
+
+        if (!string.IsNullOrWhiteSpace(cambios.Subtitle))
+        {
+            hero.Subtitle = cambios.Subtitle.Trim();
+        }
+
+        if (cambios.ButtonText is not null)
+        {
+            hero.ButtonText = cambios.ButtonText.Trim();
+        }
+
+        if (cambios.BackgroundImage is not null)
+        {
+            hero.BackgroundImage = cambios.BackgroundImage.Trim();
+        }
+
+        await db.SaveChangesAsync();
+        return Copiar(hero);
     }
 
     private static HeroPrincipal Copiar(HeroPrincipal hero) => new()
     {
+        Id = hero.Id,
         Title = hero.Title,
         Subtitle = hero.Subtitle,
         ButtonText = hero.ButtonText,

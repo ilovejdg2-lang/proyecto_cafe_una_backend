@@ -1,162 +1,122 @@
+using Microsoft.EntityFrameworkCore;
+using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
 using proyecto_cafe_una_backend.Models;
 
 namespace proyecto_cafe_una_backend.Services;
 
-public class ProductosService
+public class ProductosService(ApplicationDbContext db)
 {
     private const decimal IvaRate = 0.13m;
     private const string EstadoHabilitado = "Habilitado";
     private const string EstadoDeshabilitado = "Deshabilitado";
 
-    private readonly List<Producto> _productos = [];
-    private readonly SemaphoreSlim _mutex = new(1, 1);
+    public async Task<List<Producto>> ObtenerTodosAsync() =>
+        await db.Productos
+            .AsNoTracking()
+            .OrderBy(p => p.Id)
+            .ToListAsync();
 
-    public async Task<List<Producto>> ObtenerTodosAsync()
-    {
-        await _mutex.WaitAsync();
-        try
-        {
-            return _productos.Select(Copiar).OrderBy(p => p.Id).ToList();
-        }
-        finally
-        {
-            _mutex.Release();
-        }
-    }
-
-    public async Task<Producto?> ObtenerPorIdAsync(long id)
-    {
-        await _mutex.WaitAsync();
-        try
-        {
-            var producto = _productos.FirstOrDefault(p => p.Id == id);
-            return producto is null ? null : Copiar(producto);
-        }
-        finally
-        {
-            _mutex.Release();
-        }
-    }
+    public async Task<Producto?> ObtenerPorIdAsync(long id) =>
+        await db.Productos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(p => p.Id == id);
 
     public async Task<Producto> CrearAsync(CrearProductoRequest request)
     {
         ValidarDatosProducto(request.Nombre, request.Descripcion, request.PrecioNormal, request.Stock);
 
-        await _mutex.WaitAsync();
-        try
+        var producto = new Producto
         {
-            var producto = new Producto
-            {
-                Id = ObtenerSiguienteId(),
-                Nombre = request.Nombre.Trim(),
-                Descripcion = request.Descripcion.Trim(),
-                Imagen = request.Imagen.Trim(),
-                PrecioNormal = request.PrecioNormal,
-                PrecioConIVA = CalcularPrecioConIVA(request.PrecioNormal),
-                Stock = request.Stock,
-                Estado = NormalizarEstado(request.Estado),
-                Peso = request.Peso.Trim()
-            };
+            Nombre = request.Nombre.Trim(),
+            Descripcion = request.Descripcion.Trim(),
+            Imagen = request.Imagen.Trim(),
+            PrecioNormal = request.PrecioNormal,
+            PrecioConIVA = CalcularPrecioConIVA(request.PrecioNormal),
+            Stock = request.Stock,
+            Estado = NormalizarEstado(request.Estado),
+            Peso = request.Peso.Trim()
+        };
 
-            _productos.Add(producto);
-            return Copiar(producto);
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        db.Productos.Add(producto);
+        await db.SaveChangesAsync();
+
+        return producto;
     }
 
     public async Task<Producto?> ActualizarAsync(long id, ActualizarProductoRequest cambios)
     {
-        await _mutex.WaitAsync();
-        try
+        var actual = await db.Productos.FirstOrDefaultAsync(p => p.Id == id);
+        if (actual is null)
         {
-            var index = _productos.FindIndex(p => p.Id == id);
-            if (index < 0)
-            {
-                return null;
-            }
-
-            var actual = _productos[index];
-
-            if (!string.IsNullOrWhiteSpace(cambios.Nombre))
-            {
-                actual.Nombre = cambios.Nombre.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(cambios.Descripcion))
-            {
-                actual.Descripcion = cambios.Descripcion.Trim();
-            }
-
-            if (cambios.Imagen is not null)
-            {
-                actual.Imagen = cambios.Imagen.Trim();
-            }
-
-            if (cambios.PrecioNormal.HasValue)
-            {
-                if (cambios.PrecioNormal.Value < 0)
-                {
-                    throw new InvalidOperationException("El precio normal no puede ser negativo.");
-                }
-
-                actual.PrecioNormal = cambios.PrecioNormal.Value;
-                actual.PrecioConIVA = CalcularPrecioConIVA(actual.PrecioNormal);
-            }
-            else if (cambios.PrecioConIVA.HasValue)
-            {
-                actual.PrecioConIVA = cambios.PrecioConIVA.Value;
-            }
-
-            if (cambios.Stock.HasValue)
-            {
-                if (cambios.Stock.Value < 0)
-                {
-                    throw new InvalidOperationException("El stock no puede ser negativo.");
-                }
-
-                actual.Stock = cambios.Stock.Value;
-            }
-
-            if (cambios.Peso is not null)
-            {
-                actual.Peso = cambios.Peso.Trim();
-            }
-
-            if (!string.IsNullOrWhiteSpace(cambios.Estado))
-            {
-                actual.Estado = NormalizarEstado(cambios.Estado);
-            }
-
-            return Copiar(actual);
+            return null;
         }
-        finally
+
+        if (!string.IsNullOrWhiteSpace(cambios.Nombre))
         {
-            _mutex.Release();
+            actual.Nombre = cambios.Nombre.Trim();
         }
+
+        if (!string.IsNullOrWhiteSpace(cambios.Descripcion))
+        {
+            actual.Descripcion = cambios.Descripcion.Trim();
+        }
+
+        if (cambios.Imagen is not null)
+        {
+            actual.Imagen = cambios.Imagen.Trim();
+        }
+
+        if (cambios.PrecioNormal.HasValue)
+        {
+            if (cambios.PrecioNormal.Value < 0)
+            {
+                throw new InvalidOperationException("El precio normal no puede ser negativo.");
+            }
+
+            actual.PrecioNormal = cambios.PrecioNormal.Value;
+            actual.PrecioConIVA = CalcularPrecioConIVA(actual.PrecioNormal);
+        }
+        else if (cambios.PrecioConIVA.HasValue)
+        {
+            actual.PrecioConIVA = cambios.PrecioConIVA.Value;
+        }
+
+        if (cambios.Stock.HasValue)
+        {
+            if (cambios.Stock.Value < 0)
+            {
+                throw new InvalidOperationException("El stock no puede ser negativo.");
+            }
+
+            actual.Stock = cambios.Stock.Value;
+        }
+
+        if (cambios.Peso is not null)
+        {
+            actual.Peso = cambios.Peso.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(cambios.Estado))
+        {
+            actual.Estado = NormalizarEstado(cambios.Estado);
+        }
+
+        await db.SaveChangesAsync();
+        return actual;
     }
 
     public async Task<bool> EliminarAsync(long id)
     {
-        await _mutex.WaitAsync();
-        try
+        var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == id);
+        if (producto is null)
         {
-            var index = _productos.FindIndex(p => p.Id == id);
-            if (index < 0)
-            {
-                return false;
-            }
+            return false;
+        }
 
-            _productos.RemoveAt(index);
-            return true;
-        }
-        finally
-        {
-            _mutex.Release();
-        }
+        db.Productos.Remove(producto);
+        await db.SaveChangesAsync();
+        return true;
     }
 
     public async Task<List<Producto>> AjustarStockAsync(IEnumerable<AjustarStockProductoItemRequest> items)
@@ -167,14 +127,15 @@ public class ProductosService
             return [];
         }
 
-        await _mutex.WaitAsync();
+        await using var transaction = await db.Database.BeginTransactionAsync();
+
         try
         {
             var actualizados = new List<Producto>();
 
             foreach (var solicitud in solicitudes)
             {
-                var producto = _productos.FirstOrDefault(p => p.Id == solicitud.Id);
+                var producto = await db.Productos.FirstOrDefaultAsync(p => p.Id == solicitud.Id);
                 if (producto is null)
                 {
                     throw new InvalidOperationException($"No se encontró el producto con id {solicitud.Id}.");
@@ -191,19 +152,19 @@ public class ProductosService
                 }
 
                 producto.Stock -= solicitud.Units;
-                actualizados.Add(Copiar(producto));
+                actualizados.Add(producto);
             }
 
+            await db.SaveChangesAsync();
+            await transaction.CommitAsync();
             return actualizados;
         }
-        finally
+        catch
         {
-            _mutex.Release();
+            await transaction.RollbackAsync();
+            throw;
         }
     }
-
-    private long ObtenerSiguienteId() =>
-        _productos.Count == 0 ? 1 : _productos.Max(p => p.Id) + 1;
 
     private static decimal CalcularPrecioConIVA(decimal precioNormal) =>
         Math.Round(precioNormal * (1 + IvaRate), 0, MidpointRounding.AwayFromZero);
@@ -235,17 +196,4 @@ public class ProductosService
             throw new InvalidOperationException("El stock no puede ser negativo.");
         }
     }
-
-    private static Producto Copiar(Producto producto) => new()
-    {
-        Id = producto.Id,
-        Nombre = producto.Nombre,
-        Descripcion = producto.Descripcion,
-        Imagen = producto.Imagen,
-        PrecioNormal = producto.PrecioNormal,
-        PrecioConIVA = producto.PrecioConIVA,
-        Stock = producto.Stock,
-        Estado = producto.Estado,
-        Peso = producto.Peso
-    };
 }
