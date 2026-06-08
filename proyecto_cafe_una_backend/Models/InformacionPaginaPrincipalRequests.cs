@@ -18,8 +18,16 @@ public class ActualizarEnlaceSitioRequest
     public bool? AbrirEnNuevaPestana { get; set; }
 }
 
+public class ActualizarInformacionNavbarRequest
+{
+    public string? LogoUrl { get; set; }
+    public string? LogoClaroUrl { get; set; }
+}
+
 public class ActualizarInformacionFooterRequest
 {
+    public string? LogoUrl { get; set; }
+    public string? LogoClaroUrl { get; set; }
     public string? FraseMarca { get; set; }
     public string? Telefono { get; set; }
     public string? Correo { get; set; }
