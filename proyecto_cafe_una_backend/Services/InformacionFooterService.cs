@@ -26,6 +26,16 @@ public class InformacionFooterService
         await _mutex.WaitAsync();
         try
         {
+            if (cambios.LogoUrl is not null)
+            {
+                _footer.LogoUrl = cambios.LogoUrl.Trim();
+            }
+
+            if (cambios.LogoClaroUrl is not null)
+            {
+                _footer.LogoClaroUrl = cambios.LogoClaroUrl.Trim();
+            }
+
             if (cambios.FraseMarca is not null)
             {
                 _footer.FraseMarca = cambios.FraseMarca.Trim();
@@ -71,6 +81,8 @@ public class InformacionFooterService
 
     private static InformacionFooter Copiar(InformacionFooter footer) => new()
     {
+        LogoUrl = footer.LogoUrl,
+        LogoClaroUrl = footer.LogoClaroUrl,
         FraseMarca = footer.FraseMarca,
         Telefono = footer.Telefono,
         Correo = footer.Correo,
