@@ -5,7 +5,7 @@ namespace proyecto_cafe_una_backend.Services;
 
 public class InformacionFooterService
 {
-    private readonly InformacionFooter _footer = CrearFooterPorDefecto();
+    private readonly InformacionFooter _footer = new();
     private readonly SemaphoreSlim _mutex = new(1, 1);
 
     public async Task<InformacionFooter> ObtenerAsync()
@@ -26,6 +26,16 @@ public class InformacionFooterService
         await _mutex.WaitAsync();
         try
         {
+            if (cambios.LogoUrl is not null)
+            {
+                _footer.LogoUrl = cambios.LogoUrl.Trim();
+            }
+
+            if (cambios.LogoClaroUrl is not null)
+            {
+                _footer.LogoClaroUrl = cambios.LogoClaroUrl.Trim();
+            }
+
             if (cambios.FraseMarca is not null)
             {
                 _footer.FraseMarca = cambios.FraseMarca.Trim();
@@ -69,19 +79,10 @@ public class InformacionFooterService
         }
     }
 
-    private static InformacionFooter CrearFooterPorDefecto() => new()
-    {
-        FraseMarca = "Frase",
-        Telefono = "8599-7693",
-        Correo = "cafeuna@una.cr",
-        FacebookUrl = "https://www.facebook.com/p/Caf%C3%A9-UNA-100051575025767/",
-        InstagramUrl = "https://www.instagram.com/cafeuna_/",
-        MapsUrl = "https://www.google.com/maps/place/Finca+Experimental+Santa+Luc%C3%ADa+-+Universidad+Nacional/@10.0232346,-84.1121791,17z",
-        TextoCopyright = "© 2026 Cafe UNA Todos los derechos reservados."
-    };
-
     private static InformacionFooter Copiar(InformacionFooter footer) => new()
     {
+        LogoUrl = footer.LogoUrl,
+        LogoClaroUrl = footer.LogoClaroUrl,
         FraseMarca = footer.FraseMarca,
         Telefono = footer.Telefono,
         Correo = footer.Correo,

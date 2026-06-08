@@ -13,6 +13,7 @@ public class InformacionController(
     TextoInstitucionalService textoInstitucionalService,
     GaleriaInstitucionalService galeriaService,
     InformacionFooterService footerService,
+    InformacionNavbarService navbarService,
     EnlaceSitioService enlaceSitioService) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -32,6 +33,7 @@ public class InformacionController(
         var vision = await textoInstitucionalService.ObtenerAsync("vision");
         var gallery = await galeriaService.ObtenerTodosAsync();
         var footer = await footerService.ObtenerAsync();
+        var navbar = await navbarService.ObtenerAsync();
         var enlaces = await enlaceSitioService.ObtenerTodosAsync();
 
         return Ok(new
@@ -42,6 +44,7 @@ public class InformacionController(
             vision,
             gallery,
             footer,
+            navbar,
             enlaces
         });
     }
@@ -139,6 +142,18 @@ public class InformacionController(
         }
 
         return NoContent();
+    }
+
+    [HttpGet("navbar")]
+    public async Task<ActionResult<InformacionNavbar>> ObtenerNavbar()
+    {
+        return Ok(await navbarService.ObtenerAsync());
+    }
+
+    [HttpPatch("navbar")]
+    public async Task<ActionResult<InformacionNavbar>> ActualizarNavbar([FromBody] ActualizarInformacionNavbarRequest cambios)
+    {
+        return Ok(await navbarService.ActualizarAsync(cambios));
     }
 
     [HttpGet("footer")]

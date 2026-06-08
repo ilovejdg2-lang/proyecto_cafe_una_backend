@@ -64,6 +64,7 @@ builder.Services.AddSingleton<HeroService>();
 builder.Services.AddSingleton<TextoInstitucionalService>();
 builder.Services.AddSingleton<GaleriaInstitucionalService>();
 builder.Services.AddSingleton<InformacionFooterService>();
+builder.Services.AddSingleton<InformacionNavbarService>();
 builder.Services.AddSingleton<EnlaceSitioService>();
 builder.Services.AddSingleton<AuthService>();
 
@@ -81,6 +82,7 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
+app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
