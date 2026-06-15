@@ -37,6 +37,19 @@ public class EmailService(
         return await EnviarAsync(destinatario, subject, body);
     }
 
+    public async Task<bool> EnviarCodigoCambioCorreoAsync(string destinatario, string nombre, string codigo)
+    {
+        var subject = "Verifica tu nuevo correo - Café UNA";
+        var body = await BuildCodeEmailAsync(
+            nombre,
+            "Cambio de correo",
+            "Usá este código para confirmar tu nuevo correo en Café UNA:",
+            codigo,
+            "El código vence en 30 minutos. Si no solicitaste este cambio, ignorá este correo.");
+
+        return await EnviarAsync(destinatario, subject, body);
+    }
+
     private async Task<bool> EnviarAsync(string destinatario, string subject, string htmlBody)
     {
         var settings = GetSettings();
