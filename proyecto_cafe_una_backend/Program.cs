@@ -94,13 +94,17 @@ using (var scope = app.Services.CreateScope())
     }
     catch (Exception ex)
     {
-        logger.LogError(ex, "No se pudo conectar o migrar la base de datos de Supabase.");
-        throw;
+        
+        logger.LogError(ex, "No se pudo conectar o migrar la base de datos de Supabase. La app continua sin migracion.");
     }
 }
 
 app.UseSwagger();
-app.UseSwaggerUI();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "Cafe UNA API v1");
+    c.RoutePrefix = string.Empty; // Swagger en la raiz "/"
+});
 
 if (!app.Environment.IsDevelopment())
 {
