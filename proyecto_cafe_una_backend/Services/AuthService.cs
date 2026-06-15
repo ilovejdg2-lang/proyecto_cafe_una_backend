@@ -64,17 +64,6 @@ public class AuthService(
         var now = DateTime.UtcNow;
         var nombreNormalizado = nombre.ToLowerInvariant();
 
-        var nombreOcupadoEnPendiente = await db.RegistrosPendientes.AnyAsync(entry =>
-            !entry.Usado &&
-            entry.ExpiraEnUtc > now &&
-            entry.Nombre.ToLower() == nombreNormalizado &&
-            entry.Correo.ToLower() != correo);
-
-        if (nombreOcupadoEnPendiente)
-        {
-            throw new InvalidOperationException("Ese nombre de usuario ya está en uso.");
-        }
-
         var pendienteActivo = await db.RegistrosPendientes
             .Where(entry => !entry.Usado && entry.ExpiraEnUtc > now && entry.Correo.ToLower() == correo)
             .OrderByDescending(entry => entry.ExpiraEnUtc)
@@ -98,7 +87,8 @@ public class AuthService(
             .Where(entry =>
                 entry.Usado ||
                 entry.ExpiraEnUtc <= now ||
-                entry.Correo.ToLower() == correo)
+                entry.Correo.ToLower() == correo ||
+                entry.Nombre.ToLower() == nombreNormalizado)
             .ToListAsync();
 
         if (entradasPrevias.Count > 0)

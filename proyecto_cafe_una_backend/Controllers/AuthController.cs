@@ -45,8 +45,8 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
             return Ok(new
             {
                 message = result.EmailEnviado
-                    ? "Se envio el codigo de verificacion al correo indicado."
-                    : "Se genero el codigo de verificacion.",
+                    ? "Se envió el código de verificación al correo indicado. Revise también la carpeta de spam."
+                    : "Se generó el código, pero no se pudo enviar el correo. Espere 3 minutos y use reenviar código, o contacte al administrador.",
                 emailSent = result.EmailEnviado,
                 requiresVerification = true
             });

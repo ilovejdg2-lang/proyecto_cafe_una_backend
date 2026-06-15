@@ -44,6 +44,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(u => u.PasswordHash).HasMaxLength(500).IsRequired();
             entity.Property(u => u.Estado).HasMaxLength(20).HasDefaultValue("activo");
             entity.Property(u => u.Roles);
+            entity.Property(u => u.FotoPerfilUrl).HasMaxLength(1000);
+            entity.Property(u => u.FotoBannerUrl).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<SolicitudVoluntariado>(entity =>
