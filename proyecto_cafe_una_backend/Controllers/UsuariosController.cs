@@ -56,7 +56,12 @@ public class UsuariosController(UsuariosService usuariosService) : ControllerBas
 
         try
         {
-            var actualizado = await usuariosService.ActualizarConActorAsync(id, payload, cambios.ActorId, cambios.ActorRoles);
+            var actualizado = await usuariosService.ActualizarConActorAsync(
+                id,
+                payload,
+                cambios.ActorId,
+                cambios.ActorRoles,
+                cambios.PasswordActual);
             if (actualizado is null)
             {
                 return NotFound();

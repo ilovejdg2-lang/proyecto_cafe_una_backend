@@ -8,4 +8,6 @@ public class Usuario
     public string PasswordHash { get; set; } = string.Empty;
     public string Estado { get; set; } = "activo";
     public List<string> Roles { get; set; } = ["Usuario"];
+    public string? FotoPerfilUrl { get; set; }
+    public string? FotoBannerUrl { get; set; }
 }
