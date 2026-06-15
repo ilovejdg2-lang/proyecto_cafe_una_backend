@@ -1,0 +1,149 @@
+name: Deploy to MonsterASP.NET
+
+on:
+  push:
+    branches: [main, master, development]
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Prepare appsettings.Production.json
+        id: prep
+        shell: pwsh
+        env:
+          CONNECTION_STRING: ${{ secrets.CONNECTION_STRING }}
+          JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
+          JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+          JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME: ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
+          SMTP_FROM_NAME: ${{ secrets.SMTP_FROM_NAME }}
+          CEDULA_API_KEY: ${{ secrets.CEDULA_API_KEY }}
+        run: |
+          $required = @(
+            'CONNECTION_STRING',
+            'JWT_SECRET_KEY'
+          )
+          $missing = @($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($missing.Count -gt 0) {
+            throw @"
+          Faltan Repository secrets en GitHub:
+          Settings -> Secrets and variables -> Actions -> Repository secrets
+
+          Faltan: $($missing -join ', ')
+          "@
+          }
+
+          $csproj = 'proyecto_cafe_una_backend/proyecto_cafe_una_backend.csproj'
+          $publishPath = 'proyecto_cafe_una_backend/publish'
+          if (-not (Test-Path $csproj)) {
+            throw "No se encontro $csproj"
+          }
+
+          "csproj=$csproj" | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+          "publish_path=$publishPath" | Add-Content -Path $env:GITHUB_OUTPUT -Encoding utf8
+
+          $projDir = Split-Path $csproj -Parent
+          $jwtIssuer = if ([string]::IsNullOrWhiteSpace($env:JWT_ISSUER)) { 'CafeUNA' } else { $env:JWT_ISSUER }
+          $jwtAudience = if ([string]::IsNullOrWhiteSpace($env:JWT_AUDIENCE)) { 'cafe-una-api' } else { $env:JWT_AUDIENCE }
+          $smtpHost = if ([string]::IsNullOrWhiteSpace($env:SMTP_HOST)) { 'smtp.gmail.com' } else { $env:SMTP_HOST }
+          $smtpPort = if ([string]::IsNullOrWhiteSpace($env:SMTP_PORT)) { 587 } else { [int]$env:SMTP_PORT }
+          $smtpFromName = if ([string]::IsNullOrWhiteSpace($env:SMTP_FROM_NAME)) { 'Cafe UNA' } else { $env:SMTP_FROM_NAME }
+          $cedulaProvider = if ([string]::IsNullOrWhiteSpace($env:CEDULA_API_KEY)) { 'None' } else { 'Apify' }
+
+          $settings = [ordered]@{
+            ConnectionStrings = [ordered]@{
+              DefaultConnection = $env:CONNECTION_STRING
+            }
+            JwtSettings = [ordered]@{
+              Issuer    = $jwtIssuer
+              Audience  = $jwtAudience
+              SecretKey = $env:JWT_SECRET_KEY
+            }
+            Smtp = [ordered]@{
+              Host       = $smtpHost
+              Port       = $smtpPort
+              Username   = $env:SMTP_USERNAME
+              Password   = $env:SMTP_PASSWORD
+              EnableSsl  = $true
+              FromEmail  = $env:SMTP_FROM_EMAIL
+              FromName   = $smtpFromName
+            }
+            CedulaConsulta = [ordered]@{
+              Provider                       = $cedulaProvider
+              ApiKey                         = $env:CEDULA_API_KEY
+              ApifyBaseUrl                   = 'https://tse.apifycr.com/api/v2'
+              VerifikBaseUrl                 = 'https://api.verifik.co'
+              UseMockFallbackInDevelopment   = $false
+            }
+            Logging = [ordered]@{
+              LogLevel = [ordered]@{
+                Default                = 'Information'
+                'Microsoft.AspNetCore' = 'Warning'
+              }
+            }
+          }
+
+          $outFile = Join-Path $projDir 'appsettings.Production.json'
+          $settings | ConvertTo-Json -Depth 6 | Set-Content -Path $outFile -Encoding utf8
+          Write-Host "Generado $outFile"
+
+      - name: Restore
+        run: dotnet restore ${{ steps.prep.outputs.csproj }}
+
+      - name: Publish
+        run: dotnet publish ${{ steps.prep.outputs.csproj }} -c Release -o ${{ steps.prep.outputs.publish_path }} --runtime win-x86 --self-contained false
+
+      - name: Install Web Deploy 3.6
+        shell: pwsh
+        run: |
+          $msdeployCandidates = @(
+            "${env:ProgramFiles}\IIS\Microsoft Web Deploy V3\msdeploy.exe",
+            "${env:ProgramFiles(x86)}\IIS\Microsoft Web Deploy V3\msdeploy.exe"
+          )
+          if ($msdeployCandidates | Where-Object { Test-Path $_ }) {
+            Write-Host 'Web Deploy ya instalado.'
+            exit 0
+          }
+          $msi = Join-Path $env:RUNNER_TEMP 'WebDeploy_amd64_en-US.msi'
+          Invoke-WebRequest -Uri 'https://download.microsoft.com/download/0/1/D/01DC28EA-638A-4FAB-8A0B-ED0AE7B3F6F9/WebDeploy_amd64_en-US.msi' -OutFile $msi
+          $proc = Start-Process msiexec.exe -ArgumentList @('/i', $msi, '/quiet', '/norestart') -PassThru -Wait
+          if ($proc.ExitCode -notin 0, 3010) {
+            throw "Instalacion Web Deploy fallo con codigo $($proc.ExitCode)"
+          }
+
+      - name: Deploy via MSDeploy
+        shell: pwsh
+        env:
+          WEBSITE_NAME: ${{ secrets.WEBSITE_NAME }}
+          SERVER_COMPUTER_NAME: ${{ secrets.SERVER_COMPUTER_NAME }}
+          SERVER_USERNAME: ${{ secrets.SERVER_USERNAME }}
+          SERVER_PASSWORD: ${{ secrets.SERVER_PASSWORD }}
+        run: |
+          $deployRequired = @(
+            'WEBSITE_NAME','SERVER_COMPUTER_NAME','SERVER_USERNAME','SERVER_PASSWORD'
+          )
+          $deployMissing = @($deployRequired | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) })
+          if ($deployMissing.Count -gt 0) {
+            throw "Faltan secrets de MonsterASP: $($deployMissing -join ', ')"
+          }
+
+          & ./scripts/deploy-msdeploy.ps1 `
+            -PublishDir '${{ steps.prep.outputs.publish_path }}' `
+            -WebsiteName $env:WEBSITE_NAME `
+            -ServerComputerName $env:SERVER_COMPUTER_NAME `
+            -ServerUsername $env:SERVER_USERNAME `
+            -ServerPassword $env:SERVER_PASSWORD
