@@ -76,6 +76,7 @@ builder.Services.AddScoped<InformacionNavbarService>();
 builder.Services.AddScoped<EnlaceSitioService>();
 builder.Services.AddScoped<ProductosService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<EmailService>();
 
 var app = builder.Build();
 
@@ -87,12 +88,7 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await db.Database.MigrateAsync();
-        await DatabaseSeeder.SeedAsync(db);
-
-        if (await db.Database.CanConnectAsync())
-        {
-            logger.LogInformation("Conexion a Supabase establecida correctamente.");
-        }
+        logger.LogInformation("Conexion a Supabase establecida correctamente.");
     }
     catch (Exception ex)
     {
@@ -113,7 +109,6 @@ if (!app.Environment.IsDevelopment())
 }
 
 app.UseCors("Frontend");
-app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

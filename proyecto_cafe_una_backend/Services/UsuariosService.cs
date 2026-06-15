@@ -52,6 +52,13 @@ public class UsuariosService(ApplicationDbContext db)
     public async Task<bool> ExisteCorreoAsync(string correo) =>
         await ObtenerPorCorreoAsync(correo) is not null;
 
+    public async Task<bool> ExisteNombreAsync(string nombre)
+    {
+        var normalized = nombre.Trim().ToLowerInvariant();
+        return await db.Usuarios.AsNoTracking()
+            .AnyAsync(u => u.Nombre.ToLower() == normalized);
+    }
+
     public async Task<Usuario> CrearAsync(Usuario nuevoUsuario)
     {
         var usuarioCompleto = new Usuario

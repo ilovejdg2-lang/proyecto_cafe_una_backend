@@ -2,7 +2,7 @@ namespace proyecto_cafe_una_backend.Entities;
 
 public class InformacionFooter
 {
-    public int Id { get; set; } = 1;
+    public int Id { get; set; }
     public string LogoUrl { get; set; } = string.Empty;
     public string LogoClaroUrl { get; set; } = string.Empty;
     public string FraseMarca { get; set; } = string.Empty;
