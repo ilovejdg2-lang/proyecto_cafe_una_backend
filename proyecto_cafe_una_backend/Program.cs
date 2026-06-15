@@ -67,6 +67,8 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
 builder.Services.AddScoped<UsuariosService>();
+builder.Services.AddScoped<UsuariosAdminService>();
+builder.Services.AddScoped<PerfilService>();
 builder.Services.AddScoped<VoluntariadoService>();
 builder.Services.AddScoped<HeroService>();
 builder.Services.AddScoped<TextoInstitucionalService>();
@@ -90,6 +92,30 @@ using (var scope = app.Services.CreateScope())
     try
     {
         await db.Database.MigrateAsync();
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoPerfilUrl" character varying(1000);
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoBannerUrl" character varying(1000);
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoPerfilPosicion" character varying(30);
+            ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoBannerPosicion" character varying(30);
+            CREATE TABLE IF NOT EXISTS cambios_correo_pendientes (
+                "Id" SERIAL PRIMARY KEY,
+                "UsuarioId" integer NOT NULL,
+                "NuevoCorreo" character varying(200) NOT NULL,
+                "Token" character varying(20) NOT NULL,
+                "ExpiraEnUtc" timestamp with time zone NOT NULL,
+                "Usado" boolean NOT NULL DEFAULT FALSE
+            );
+            CREATE TABLE IF NOT EXISTS usuarios_creacion_pendientes (
+                "Id" SERIAL PRIMARY KEY,
+                "Token" character varying(20) NOT NULL,
+                "Correo" character varying(200) NOT NULL,
+                "Nombre" character varying(200) NOT NULL,
+                "PasswordHash" character varying(500) NOT NULL,
+                "Roles" text[] NOT NULL DEFAULT ARRAY['Usuario']::text[],
+                "ExpiraEnUtc" timestamp with time zone NOT NULL,
+                "Usado" boolean NOT NULL DEFAULT FALSE
+            );
+            """);
         logger.LogInformation("Conexion a Supabase establecida correctamente.");
     }
     catch (Exception ex)

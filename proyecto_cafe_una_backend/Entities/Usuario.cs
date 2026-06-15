@@ -10,4 +10,6 @@ public class Usuario
     public List<string> Roles { get; set; } = ["Usuario"];
     public string? FotoPerfilUrl { get; set; }
     public string? FotoBannerUrl { get; set; }
+    public string? FotoPerfilPosicion { get; set; }
+    public string? FotoBannerPosicion { get; set; }
 }

@@ -22,9 +22,10 @@ public class ActualizarUsuarioRequest
 public class ActualizarPerfilRequest
 {
     public string Nombre { get; set; } = string.Empty;
-    public string Correo { get; set; } = string.Empty;
     public string? FotoPerfilUrl { get; set; }
     public string? FotoBannerUrl { get; set; }
+    public string? FotoPerfilPosicion { get; set; }
+    public string? FotoBannerPosicion { get; set; }
 }
 
 public class CambiarPasswordRequest
@@ -42,4 +43,37 @@ public class UsuarioPerfilResponse
     public List<string> Roles { get; set; } = [];
     public string? FotoPerfilUrl { get; set; }
     public string? FotoBannerUrl { get; set; }
+    public string? FotoPerfilPosicion { get; set; }
+    public string? FotoBannerPosicion { get; set; }
+}
+
+public class SolicitarCambioCorreoRequest
+{
+    public string NuevoCorreo { get; set; } = string.Empty;
+}
+
+public class ConfirmarCambioCorreoRequest
+{
+    public string NuevoCorreo { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
+}
+
+public class CambioCorreoResult
+{
+    public bool EmailEnviado { get; set; }
+    public string? MensajeError { get; set; }
+}
+
+public class SolicitarCreacionUsuarioRequest
+{
+    public string Nombre { get; set; } = string.Empty;
+    public string Correo { get; set; } = string.Empty;
+    public string PasswordHash { get; set; } = string.Empty;
+    public List<string> Roles { get; set; } = [];
+}
+
+public class ConfirmarCreacionUsuarioRequest
+{
+    public string Correo { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
 }

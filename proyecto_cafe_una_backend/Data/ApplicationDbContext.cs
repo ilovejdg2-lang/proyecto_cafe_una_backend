@@ -16,6 +16,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<GaleriaInstitucionalItem> GaleriaInstitucional => Set<GaleriaInstitucionalItem>();
     public DbSet<PasswordResetEntry> PasswordResetEntries => Set<PasswordResetEntry>();
     public DbSet<RegistroPendiente> RegistrosPendientes => Set<RegistroPendiente>();
+    public DbSet<CambioCorreoPendiente> CambiosCorreoPendientes => Set<CambioCorreoPendiente>();
+    public DbSet<UsuarioCreacionPendiente> UsuariosCreacionPendientes => Set<UsuarioCreacionPendiente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -46,6 +48,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(u => u.Roles);
             entity.Property(u => u.FotoPerfilUrl).HasMaxLength(1000);
             entity.Property(u => u.FotoBannerUrl).HasMaxLength(1000);
+            entity.Property(u => u.FotoPerfilPosicion).HasMaxLength(30);
+            entity.Property(u => u.FotoBannerPosicion).HasMaxLength(30);
         });
 
         modelBuilder.Entity<SolicitudVoluntariado>(entity =>
@@ -154,6 +158,32 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(r => r.PasswordHash).HasMaxLength(500).IsRequired();
             entity.HasIndex(r => r.Correo);
             entity.HasIndex(r => r.Token);
+        });
+
+        modelBuilder.Entity<CambioCorreoPendiente>(entity =>
+        {
+            entity.ToTable("cambios_correo_pendientes");
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.Id).ValueGeneratedOnAdd();
+            entity.Property(c => c.UsuarioId).IsRequired();
+            entity.Property(c => c.NuevoCorreo).HasMaxLength(200).IsRequired();
+            entity.Property(c => c.Token).HasMaxLength(20).IsRequired();
+            entity.HasIndex(c => c.UsuarioId);
+            entity.HasIndex(c => c.NuevoCorreo);
+        });
+
+        modelBuilder.Entity<UsuarioCreacionPendiente>(entity =>
+        {
+            entity.ToTable("usuarios_creacion_pendientes");
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Id).ValueGeneratedOnAdd();
+            entity.Property(u => u.Token).HasMaxLength(20).IsRequired();
+            entity.Property(u => u.Correo).HasMaxLength(200).IsRequired();
+            entity.Property(u => u.Nombre).HasMaxLength(200).IsRequired();
+            entity.Property(u => u.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.Property(u => u.Roles);
+            entity.HasIndex(u => u.Correo);
+            entity.HasIndex(u => u.Token);
         });
     }
 }
