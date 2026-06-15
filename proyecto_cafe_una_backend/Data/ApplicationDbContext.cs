@@ -15,6 +15,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<EnlaceSitio> EnlacesSitio => Set<EnlaceSitio>();
     public DbSet<GaleriaInstitucionalItem> GaleriaInstitucional => Set<GaleriaInstitucionalItem>();
     public DbSet<PasswordResetEntry> PasswordResetEntries => Set<PasswordResetEntry>();
+    public DbSet<RegistroPendiente> RegistrosPendientes => Set<RegistroPendiente>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -138,6 +139,19 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(p => p.Token).HasMaxLength(20).IsRequired();
             entity.Property(p => p.Correo).HasMaxLength(200).IsRequired();
             entity.HasIndex(p => p.Token);
+        });
+
+        modelBuilder.Entity<RegistroPendiente>(entity =>
+        {
+            entity.ToTable("registros_pendientes");
+            entity.HasKey(r => r.Id);
+            entity.Property(r => r.Id).ValueGeneratedOnAdd();
+            entity.Property(r => r.Token).HasMaxLength(20).IsRequired();
+            entity.Property(r => r.Correo).HasMaxLength(200).IsRequired();
+            entity.Property(r => r.Nombre).HasMaxLength(200).IsRequired();
+            entity.Property(r => r.PasswordHash).HasMaxLength(500).IsRequired();
+            entity.HasIndex(r => r.Correo);
+            entity.HasIndex(r => r.Token);
         });
     }
 }

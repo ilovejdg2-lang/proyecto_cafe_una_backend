@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Mail;
 using Microsoft.EntityFrameworkCore;
 using proyecto_cafe_una_backend.Data;
 using proyecto_cafe_una_backend.Entities;
@@ -10,10 +8,11 @@ namespace proyecto_cafe_una_backend.Services;
 public class AuthService(
     UsuariosService usuariosService,
     ApplicationDbContext db,
-    IWebHostEnvironment environment,
-    IConfiguration configuration)
+    EmailService emailService)
 {
     private readonly TimeSpan _tokenLifetime = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan EmailCooldown = TimeSpan.FromMinutes(3);
+    private const string MensajeEsperaCorreo = "No se puede mandar un correo seguido. Espera 3 minutos.";
 
     public async Task<Usuario?> AutenticarAsync(string identifier, string password)
     {
@@ -31,7 +30,7 @@ public class AuthService(
         return usuario.PasswordHash == password ? usuario : null;
     }
 
-    public async Task<Usuario> RegistrarAsync(RegisterRequest request)
+    public async Task<RegisterCodeResult> SolicitarRegistroAsync(RegisterRequest request)
     {
         var nombre = request.Nombre.Trim();
         var correo = request.Correo.Trim().ToLowerInvariant();
@@ -57,14 +56,132 @@ public class AuthService(
             throw new InvalidOperationException("Ya existe una cuenta con ese correo.");
         }
 
-        return await usuariosService.CrearAsync(new Usuario
+        if (await usuariosService.ExisteNombreAsync(nombre))
         {
-            Nombre = nombre,
+            throw new InvalidOperationException("Ya existe una cuenta con ese nombre de usuario.");
+        }
+
+        var now = DateTime.UtcNow;
+        var nombreNormalizado = nombre.ToLowerInvariant();
+
+        var nombreOcupadoEnPendiente = await db.RegistrosPendientes.AnyAsync(entry =>
+            !entry.Usado &&
+            entry.ExpiraEnUtc > now &&
+            entry.Nombre.ToLower() == nombreNormalizado &&
+            entry.Correo.ToLower() != correo);
+
+        if (nombreOcupadoEnPendiente)
+        {
+            throw new InvalidOperationException("Ese nombre de usuario ya está en uso.");
+        }
+
+        var pendienteActivo = await db.RegistrosPendientes
+            .Where(entry => !entry.Usado && entry.ExpiraEnUtc > now && entry.Correo.ToLower() == correo)
+            .OrderByDescending(entry => entry.ExpiraEnUtc)
+            .FirstOrDefaultAsync();
+
+        if (pendienteActivo is not null)
+        {
+            if (!string.Equals(pendienteActivo.Nombre, nombre, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException("Ese correo ya tiene un registro en proceso.");
+            }
+
+            var mensajeEspera = ObtenerMensajeEsperaCorreo(pendienteActivo.ExpiraEnUtc);
+            if (mensajeEspera is not null)
+            {
+                return new RegisterCodeResult { EmailEnviado = false, MensajeError = mensajeEspera };
+            }
+        }
+
+        var entradasPrevias = await db.RegistrosPendientes
+            .Where(entry =>
+                entry.Usado ||
+                entry.ExpiraEnUtc <= now ||
+                entry.Correo.ToLower() == correo)
+            .ToListAsync();
+
+        if (entradasPrevias.Count > 0)
+        {
+            db.RegistrosPendientes.RemoveRange(entradasPrevias);
+        }
+
+        var token = GenerarCodigo();
+        db.RegistrosPendientes.Add(new RegistroPendiente
+        {
+            Token = token,
             Correo = correo,
+            Nombre = nombre,
             PasswordHash = password,
+            ExpiraEnUtc = now.Add(_tokenLifetime),
+            Usado = false
+        });
+
+        await db.SaveChangesAsync();
+
+        var emailEnviado = await emailService.EnviarCodigoRegistroAsync(correo, nombre, token);
+        return new RegisterCodeResult
+        {
+            EmailEnviado = emailEnviado
+        };
+    }
+
+    public async Task<Usuario> ConfirmarRegistroAsync(VerifyRegistrationRequest request)
+    {
+        var correo = request.Correo.Trim().ToLowerInvariant();
+        var token = request.Token.Trim().ToUpperInvariant();
+
+        if (string.IsNullOrWhiteSpace(correo) || string.IsNullOrWhiteSpace(token))
+        {
+            throw new InvalidOperationException("Correo y código son obligatorios.");
+        }
+
+        if (await usuariosService.ExisteCorreoAsync(correo))
+        {
+            throw new InvalidOperationException("Ya existe una cuenta con ese correo.");
+        }
+
+        var now = DateTime.UtcNow;
+        var entry = await db.RegistrosPendientes.FirstOrDefaultAsync(e =>
+            !e.Usado &&
+            e.Correo.ToLower() == correo &&
+            e.Token.ToUpper() == token &&
+            e.ExpiraEnUtc > now);
+
+        if (entry is null)
+        {
+            throw new InvalidOperationException("Código inválido o expirado.");
+        }
+
+        if (await usuariosService.ExisteNombreAsync(entry.Nombre))
+        {
+            throw new InvalidOperationException("Ya existe una cuenta con ese nombre de usuario.");
+        }
+
+        var nombreNormalizado = entry.Nombre.ToLowerInvariant();
+        var nombreOcupadoEnPendiente = await db.RegistrosPendientes.AnyAsync(e =>
+            !e.Usado &&
+            e.ExpiraEnUtc > now &&
+            e.Id != entry.Id &&
+            e.Nombre.ToLower() == nombreNormalizado);
+
+        if (nombreOcupadoEnPendiente)
+        {
+            throw new InvalidOperationException("Ese nombre de usuario ya está en uso.");
+        }
+
+        var usuario = await usuariosService.CrearAsync(new Usuario
+        {
+            Nombre = entry.Nombre,
+            Correo = entry.Correo,
+            PasswordHash = entry.PasswordHash,
             Estado = "activo",
             Roles = ["Usuario"]
         });
+
+        entry.Usado = true;
+        await db.SaveChangesAsync();
+        return usuario;
     }
 
     public async Task<ForgotPasswordResult> SolicitarRecuperacionAsync(ForgotPasswordRequest request)
@@ -82,6 +199,26 @@ public class AuthService(
         }
 
         var now = DateTime.UtcNow;
+
+        var recuperacionActiva = await db.PasswordResetEntries
+            .Where(entry => !entry.Usado && entry.ExpiraEnUtc > now && entry.Correo.ToLower() == usuario.Correo.ToLower())
+            .OrderByDescending(entry => entry.ExpiraEnUtc)
+            .FirstOrDefaultAsync();
+
+        if (recuperacionActiva is not null)
+        {
+            var mensajeEspera = ObtenerMensajeEsperaCorreo(recuperacionActiva.ExpiraEnUtc);
+            if (mensajeEspera is not null)
+            {
+                return new ForgotPasswordResult
+                {
+                    UsuarioEncontrado = true,
+                    EmailEnviado = false,
+                    MensajeError = mensajeEspera
+                };
+            }
+        }
+
         var entradasPrevias = await db.PasswordResetEntries
             .Where(entry =>
                 entry.Usado ||
@@ -94,7 +231,7 @@ public class AuthService(
             db.PasswordResetEntries.RemoveRange(entradasPrevias);
         }
 
-        var token = Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+        var token = GenerarCodigo();
         db.PasswordResetEntries.Add(new PasswordResetEntry
         {
             Token = token,
@@ -105,11 +242,10 @@ public class AuthService(
 
         await db.SaveChangesAsync();
 
-        var emailEnviado = await EnviarCorreoRecuperacionAsync(usuario.Correo, usuario.Nombre, token);
+        var emailEnviado = await emailService.EnviarCodigoRecuperacionAsync(usuario.Correo, usuario.Nombre, token);
         return new ForgotPasswordResult
         {
             UsuarioEncontrado = true,
-            DevToken = environment.IsDevelopment() ? token : null,
             EmailEnviado = emailEnviado
         };
     }
@@ -145,41 +281,12 @@ public class AuthService(
         return true;
     }
 
-    private async Task<bool> EnviarCorreoRecuperacionAsync(string destinatario, string nombre, string token)
+    private static string GenerarCodigo() => Guid.NewGuid().ToString("N")[..8].ToUpperInvariant();
+
+    private string? ObtenerMensajeEsperaCorreo(DateTime expiraEnUtc)
     {
-        var settings = configuration.GetSection("Smtp").Get<SmtpSettings>();
-        if (settings is null || string.IsNullOrWhiteSpace(settings.Host) || string.IsNullOrWhiteSpace(settings.FromEmail))
-        {
-            return false;
-        }
-
-        try
-        {
-            using var client = new SmtpClient(settings.Host, settings.Port)
-            {
-                EnableSsl = settings.EnableSsl
-            };
-
-            if (!string.IsNullOrWhiteSpace(settings.Username))
-            {
-                client.Credentials = new NetworkCredential(settings.Username, settings.Password);
-            }
-
-            using var message = new MailMessage
-            {
-                From = new MailAddress(settings.FromEmail, settings.FromName),
-                Subject = "Codigo de recuperacion de contrasena",
-                Body = $"Hola {nombre},\n\nTu codigo de recuperacion es: {token}\n\nEste codigo vence en 30 minutos.\n\nSi no solicitaste este cambio, ignora este correo.",
-                IsBodyHtml = false
-            };
-
-            message.To.Add(destinatario);
-            await client.SendMailAsync(message);
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
+        var enviadoEn = expiraEnUtc - _tokenLifetime;
+        var transcurrido = DateTime.UtcNow - enviadoEn;
+        return transcurrido >= EmailCooldown ? null : MensajeEsperaCorreo;
     }
 }
