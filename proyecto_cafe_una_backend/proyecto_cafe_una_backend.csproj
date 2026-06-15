@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <Content Include="Templates\**\*" CopyToOutputDirectory="PreserveNewest" />
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>
