@@ -355,6 +355,7 @@ healthchecksdb
 
 # Configuracion local con credenciales de base de datos
 **/appsettings.Development.json
+**/appsettings.Production.json
 
 # Backup folder for Package Reference Convert tool in Visual Studio 2017
 MigrationBackup/
