@@ -77,6 +77,8 @@ builder.Services.AddScoped<EnlaceSitioService>();
 builder.Services.AddScoped<ProductosService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<EmailService>();
+builder.Services.Configure<CedulaConsultaSettings>(builder.Configuration.GetSection("CedulaConsulta"));
+builder.Services.AddHttpClient<CedulaConsultaService>();
 
 var app = builder.Build();
 
