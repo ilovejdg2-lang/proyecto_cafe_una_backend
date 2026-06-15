@@ -9,7 +9,7 @@ namespace proyecto_cafe_una_backend.Controllers;
 [ApiController]
 [Route("api/perfil")]
 [Authorize]
-public class PerfilController(UsuariosService usuariosService) : ControllerBase
+public class PerfilController(UsuariosService usuariosService, PerfilService perfilService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<UsuarioPerfilResponse>> ObtenerPerfil()
@@ -46,6 +46,58 @@ public class PerfilController(UsuariosService usuariosService) : ControllerBase
                 return NotFound();
             }
 
+            return Ok(perfil);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("solicitar-cambio-correo")]
+    public async Task<ActionResult> SolicitarCambioCorreo([FromBody] SolicitarCambioCorreoRequest request)
+    {
+        var userId = ObtenerUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var result = await perfilService.SolicitarCambioCorreoAsync(userId.Value, request.NuevoCorreo);
+            if (!string.IsNullOrWhiteSpace(result.MensajeError))
+            {
+                return BadRequest(new { message = result.MensajeError });
+            }
+
+            return Ok(new
+            {
+                message = result.EmailEnviado
+                    ? "Se envió un código de verificación al nuevo correo. Revise también la carpeta de spam."
+                    : "Se generó el código, pero no se pudo enviar el correo. Intente de nuevo en unos minutos.",
+                emailSent = result.EmailEnviado,
+                requiresVerification = true
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("confirmar-cambio-correo")]
+    public async Task<ActionResult<UsuarioPerfilResponse>> ConfirmarCambioCorreo([FromBody] ConfirmarCambioCorreoRequest request)
+    {
+        var userId = ObtenerUserId();
+        if (userId is null)
+        {
+            return Unauthorized();
+        }
+
+        try
+        {
+            var perfil = await perfilService.ConfirmarCambioCorreoAsync(userId.Value, request.NuevoCorreo, request.Token);
             return Ok(perfil);
         }
         catch (InvalidOperationException ex)

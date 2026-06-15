@@ -7,7 +7,10 @@ namespace proyecto_cafe_una_backend.Controllers;
 
 [ApiController]
 [Route("api/usuarios")]
-public class UsuariosController(UsuariosService usuariosService) : ControllerBase
+public class UsuariosController(
+    UsuariosService usuariosService,
+    PerfilService perfilService,
+    UsuariosAdminService usuariosAdminService) : ControllerBase
 {
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Usuario>>> ObtenerUsuarios()
@@ -35,11 +38,99 @@ public class UsuariosController(UsuariosService usuariosService) : ControllerBas
         return Ok(usuario);
     }
 
-    [HttpPost]
-    public async Task<ActionResult<Usuario>> CrearUsuario([FromBody] Usuario nuevoUsuario)
+    [HttpPost("solicitar-creacion")]
+    public async Task<ActionResult> SolicitarCreacionUsuario([FromBody] SolicitarCreacionUsuarioRequest request)
     {
-        var creado = await usuariosService.CrearAsync(nuevoUsuario);
-        return CreatedAtAction(nameof(ObtenerUsuarioPorId), new { id = creado.Id }, creado);
+        try
+        {
+            var result = await usuariosAdminService.SolicitarCreacionUsuarioAsync(request);
+            if (!string.IsNullOrWhiteSpace(result.MensajeError))
+            {
+                return BadRequest(new { message = result.MensajeError });
+            }
+
+            return Ok(new
+            {
+                message = result.EmailEnviado
+                    ? "Se envió un código de verificación al correo indicado. Revise también la carpeta de spam."
+                    : "Se generó el código, pero no se pudo enviar el correo. Intente de nuevo en unos minutos.",
+                emailSent = result.EmailEnviado,
+                requiresVerification = true
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost("confirmar-creacion")]
+    public async Task<ActionResult<Usuario>> ConfirmarCreacionUsuario([FromBody] ConfirmarCreacionUsuarioRequest request)
+    {
+        try
+        {
+            var creado = await usuariosAdminService.ConfirmarCreacionUsuarioAsync(request);
+            return CreatedAtAction(nameof(ObtenerUsuarioPorId), new { id = creado.Id }, creado);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPost]
+    public ActionResult CrearUsuario([FromBody] Usuario nuevoUsuario)
+    {
+        return BadRequest(new
+        {
+            message = "Debe verificar el correo antes de crear el usuario. Use solicitar-creacion y confirmar-creacion."
+        });
+    }
+
+    [HttpPut("{id:int}/solicitar-cambio-correo")]
+    public async Task<ActionResult> SolicitarCambioCorreoUsuario(int id, [FromBody] SolicitarCambioCorreoRequest request)
+    {
+        try
+        {
+            var result = await perfilService.SolicitarCambioCorreoAsync(id, request.NuevoCorreo);
+            if (!string.IsNullOrWhiteSpace(result.MensajeError))
+            {
+                return BadRequest(new { message = result.MensajeError });
+            }
+
+            return Ok(new
+            {
+                message = result.EmailEnviado
+                    ? "Se envió un código de verificación al nuevo correo."
+                    : "Se generó el código, pero no se pudo enviar el correo.",
+                emailSent = result.EmailEnviado,
+                requiresVerification = true
+            });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HttpPut("{id:int}/confirmar-cambio-correo")]
+    public async Task<ActionResult<Usuario>> ConfirmarCambioCorreoUsuario(int id, [FromBody] ConfirmarCambioCorreoRequest request)
+    {
+        try
+        {
+            await perfilService.ConfirmarCambioCorreoAsync(id, request.NuevoCorreo, request.Token);
+            var usuario = await usuariosService.ObtenerPorIdAsync(id);
+            if (usuario is null)
+            {
+                return NotFound();
+            }
+
+            return Ok(usuario);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:int}")]

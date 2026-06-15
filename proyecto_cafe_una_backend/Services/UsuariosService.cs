@@ -95,12 +95,9 @@ public class UsuariosService(ApplicationDbContext db)
             ? actual.Correo
             : cambios.Correo.Trim().ToLowerInvariant();
 
-        var correoDuplicado = await db.Usuarios.AnyAsync(u =>
-            u.Id != id &&
-            u.Correo.ToLower() == correoSolicitado);
-        if (correoDuplicado)
+        if (!string.Equals(correoSolicitado, actual.Correo, StringComparison.OrdinalIgnoreCase))
         {
-            throw new InvalidOperationException("Ya existe una cuenta con ese correo.");
+            throw new InvalidOperationException("Para cambiar el correo debe verificarlo primero desde el formulario.");
         }
 
         actual.Nombre = string.IsNullOrWhiteSpace(cambios.Nombre) ? actual.Nombre : cambios.Nombre.Trim();
@@ -139,9 +136,6 @@ public class UsuariosService(ApplicationDbContext db)
         }
 
         var nombre = string.IsNullOrWhiteSpace(request.Nombre) ? actual.Nombre : request.Nombre.Trim();
-        var correo = string.IsNullOrWhiteSpace(request.Correo)
-            ? actual.Correo
-            : request.Correo.Trim().ToLowerInvariant();
 
         if (!string.Equals(nombre, actual.Nombre, StringComparison.OrdinalIgnoreCase))
         {
@@ -154,22 +148,15 @@ public class UsuariosService(ApplicationDbContext db)
             }
         }
 
-        var correoDuplicado = await db.Usuarios.AnyAsync(u =>
-            u.Id != id &&
-            u.Correo.ToLower() == correo);
-        if (correoDuplicado)
-        {
-            throw new InvalidOperationException("Ya existe una cuenta con ese correo.");
-        }
-
         actual.Nombre = nombre;
-        actual.Correo = correo;
         actual.FotoPerfilUrl = string.IsNullOrWhiteSpace(request.FotoPerfilUrl)
             ? null
             : request.FotoPerfilUrl.Trim();
         actual.FotoBannerUrl = string.IsNullOrWhiteSpace(request.FotoBannerUrl)
             ? null
             : request.FotoBannerUrl.Trim();
+        actual.FotoPerfilPosicion = NormalizarPosicionImagen(request.FotoPerfilPosicion);
+        actual.FotoBannerPosicion = NormalizarPosicionImagen(request.FotoBannerPosicion);
 
         await db.SaveChangesAsync();
         return ToPerfilResponse(actual);
@@ -251,7 +238,9 @@ public class UsuariosService(ApplicationDbContext db)
         Estado = usuario.Estado,
         Roles = [.. usuario.Roles],
         FotoPerfilUrl = usuario.FotoPerfilUrl,
-        FotoBannerUrl = usuario.FotoBannerUrl
+        FotoBannerUrl = usuario.FotoBannerUrl,
+        FotoPerfilPosicion = usuario.FotoPerfilPosicion,
+        FotoBannerPosicion = usuario.FotoBannerPosicion
     };
 
     private static UsuarioPerfilResponse ToPerfilResponse(Usuario usuario) => new()
@@ -262,8 +251,38 @@ public class UsuariosService(ApplicationDbContext db)
         Estado = usuario.Estado,
         Roles = [.. usuario.Roles],
         FotoPerfilUrl = usuario.FotoPerfilUrl,
-        FotoBannerUrl = usuario.FotoBannerUrl
+        FotoBannerUrl = usuario.FotoBannerUrl,
+        FotoPerfilPosicion = usuario.FotoPerfilPosicion,
+        FotoBannerPosicion = usuario.FotoBannerPosicion
     };
+
+    private static string? NormalizarPosicionImagen(string? posicion)
+    {
+        if (string.IsNullOrWhiteSpace(posicion))
+        {
+            return null;
+        }
+
+        var partes = posicion.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length != 2)
+        {
+            return null;
+        }
+
+        if (!partes[0].EndsWith('%') || !partes[1].EndsWith('%'))
+        {
+            return null;
+        }
+
+        if (!double.TryParse(partes[0][..^1], out var x) || !double.TryParse(partes[1][..^1], out var y))
+        {
+            return null;
+        }
+
+        x = Math.Clamp(x, 0, 100);
+        y = Math.Clamp(y, 0, 100);
+        return $"{Math.Round(x)}% {Math.Round(y)}%";
+    }
 
     private static void ValidarPasswordActual(string passwordGuardada, string? passwordActual)
     {
