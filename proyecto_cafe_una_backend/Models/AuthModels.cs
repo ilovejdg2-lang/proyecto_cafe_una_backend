@@ -32,8 +32,20 @@ public class ResetPasswordRequest
 public class ForgotPasswordResult
 {
     public bool UsuarioEncontrado { get; set; }
-    public string? DevToken { get; set; }
     public bool EmailEnviado { get; set; }
+    public string? MensajeError { get; set; }
+}
+
+public class RegisterCodeResult
+{
+    public bool EmailEnviado { get; set; }
+    public string? MensajeError { get; set; }
+}
+
+public class VerifyRegistrationRequest
+{
+    public string Correo { get; set; } = string.Empty;
+    public string Token { get; set; } = string.Empty;
 }
 
 public class SmtpSettings
