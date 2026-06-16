@@ -12,7 +12,10 @@ public class TextoInstitucionalService(ApplicationDbContext db)
         "historia",
         "mission",
         "vision",
-        "homeSpotlight"
+        "homeSpotlight",
+        "homeFeatured",
+        "homeIniciativas",
+        "homeLocation"
     };
 
     public bool EsClaveValida(string clave) => ClavesValidas.Contains(clave);
@@ -56,9 +59,19 @@ public class TextoInstitucionalService(ApplicationDbContext db)
             actual.Description = cambios.Description.Trim();
         }
 
+        if (cambios.Eyebrow is not null)
+        {
+            actual.Eyebrow = string.IsNullOrWhiteSpace(cambios.Eyebrow) ? null : cambios.Eyebrow.Trim();
+        }
+
         if (cambios.Image is not null)
         {
             actual.Image = string.IsNullOrWhiteSpace(cambios.Image) ? null : cambios.Image.Trim();
+        }
+
+        if (cambios.LinkUrl is not null)
+        {
+            actual.LinkUrl = string.IsNullOrWhiteSpace(cambios.LinkUrl) ? null : cambios.LinkUrl.Trim();
         }
 
         await db.SaveChangesAsync();
@@ -68,8 +81,10 @@ public class TextoInstitucionalService(ApplicationDbContext db)
     private static TextoInstitucional Copiar(TextoInstitucional texto) => new()
     {
         Clave = texto.Clave,
+        Eyebrow = texto.Eyebrow,
         Title = texto.Title,
         Description = texto.Description,
-        Image = texto.Image
+        Image = texto.Image,
+        LinkUrl = texto.LinkUrl
     };
 }

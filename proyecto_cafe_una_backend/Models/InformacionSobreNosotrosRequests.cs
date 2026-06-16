@@ -2,9 +2,11 @@ namespace proyecto_cafe_una_backend.Models;
 
 public class ActualizarTextoInstitucionalRequest
 {
+    public string? Eyebrow { get; set; }
     public string? Title { get; set; }
     public string? Description { get; set; }
     public string? Image { get; set; }
+    public string? LinkUrl { get; set; }
 }
 
 public class CrearGaleriaInstitucionalItemRequest
