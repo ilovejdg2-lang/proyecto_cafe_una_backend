@@ -50,6 +50,7 @@ public class UsuarioPerfilResponse
 public class SolicitarCambioCorreoRequest
 {
     public string NuevoCorreo { get; set; } = string.Empty;
+    public string PasswordActual { get; set; } = string.Empty;
 }
 
 public class ConfirmarCambioCorreoRequest

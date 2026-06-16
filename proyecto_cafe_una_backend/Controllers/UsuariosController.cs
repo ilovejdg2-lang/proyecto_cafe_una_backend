@@ -92,7 +92,10 @@ public class UsuariosController(
     {
         try
         {
-            var result = await perfilService.SolicitarCambioCorreoAsync(id, request.NuevoCorreo);
+            var result = await perfilService.SolicitarCambioCorreoAsync(
+                id,
+                request.NuevoCorreo,
+                request.PasswordActual);
             if (!string.IsNullOrWhiteSpace(result.MensajeError))
             {
                 return BadRequest(new { message = result.MensajeError });

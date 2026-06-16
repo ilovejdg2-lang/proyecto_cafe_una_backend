@@ -25,15 +25,14 @@ public class UsuariosAdminService(
             throw new InvalidOperationException("El nombre es obligatorio.");
         }
 
+        UsuarioValidacion.ValidarNombre(nombre);
+
         if (string.IsNullOrWhiteSpace(correo))
         {
             throw new InvalidOperationException("El correo es obligatorio.");
         }
 
-        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
-        {
-            throw new InvalidOperationException("La contraseña debe tener al menos 6 caracteres.");
-        }
+        UsuarioValidacion.ValidarPassword(password);
 
         if (await usuariosService.ExisteCorreoAsync(correo))
         {
