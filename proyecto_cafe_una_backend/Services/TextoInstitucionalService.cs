@@ -11,7 +11,8 @@ public class TextoInstitucionalService(ApplicationDbContext db)
     {
         "historia",
         "mission",
-        "vision"
+        "vision",
+        "homeSpotlight"
     };
 
     public bool EsClaveValida(string clave) => ClavesValidas.Contains(clave);
@@ -55,6 +56,11 @@ public class TextoInstitucionalService(ApplicationDbContext db)
             actual.Description = cambios.Description.Trim();
         }
 
+        if (cambios.Image is not null)
+        {
+            actual.Image = string.IsNullOrWhiteSpace(cambios.Image) ? null : cambios.Image.Trim();
+        }
+
         await db.SaveChangesAsync();
         return Copiar(actual);
     }
@@ -63,6 +69,7 @@ public class TextoInstitucionalService(ApplicationDbContext db)
     {
         Clave = texto.Clave,
         Title = texto.Title,
-        Description = texto.Description
+        Description = texto.Description,
+        Image = texto.Image
     };
 }

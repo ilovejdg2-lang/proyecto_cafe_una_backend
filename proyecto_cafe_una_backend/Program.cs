@@ -97,6 +97,7 @@ using (var scope = app.Services.CreateScope())
             ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoBannerUrl" character varying(1000);
             ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoPerfilPosicion" character varying(30);
             ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS "FotoBannerPosicion" character varying(30);
+            ALTER TABLE textos_institucionales ADD COLUMN IF NOT EXISTS "Image" character varying(1000);
             CREATE TABLE IF NOT EXISTS cambios_correo_pendientes (
                 "Id" SERIAL PRIMARY KEY,
                 "UsuarioId" integer NOT NULL,

@@ -83,6 +83,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(t => t.Clave).HasMaxLength(50);
             entity.Property(t => t.Title).HasMaxLength(500);
             entity.Property(t => t.Description).HasMaxLength(4000);
+            entity.Property(t => t.Image).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<HeroPrincipal>(entity =>
