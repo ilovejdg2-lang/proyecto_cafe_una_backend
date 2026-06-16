@@ -11,4 +11,5 @@ public class Producto
     public int Stock { get; set; }
     public string Estado { get; set; } = "Habilitado";
     public string Peso { get; set; } = string.Empty;
+    public bool EsDestacado { get; set; }
 }

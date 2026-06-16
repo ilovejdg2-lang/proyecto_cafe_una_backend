@@ -19,6 +19,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<CambioCorreoPendiente> CambiosCorreoPendientes => Set<CambioCorreoPendiente>();
     public DbSet<UsuarioCreacionPendiente> UsuariosCreacionPendientes => Set<UsuarioCreacionPendiente>();
 
+    public DbSet<TarjetaInicio> TarjetasInicio => Set<TarjetaInicio>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Producto>(entity =>
@@ -33,6 +35,18 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(p => p.PrecioConIVA).HasPrecision(12, 2);
             entity.Property(p => p.Estado).HasMaxLength(20).HasDefaultValue("Habilitado");
             entity.Property(p => p.Peso).HasMaxLength(50);
+            entity.Property(p => p.EsDestacado).HasDefaultValue(false);
+        });
+
+        modelBuilder.Entity<TarjetaInicio>(entity =>
+        {
+            entity.ToTable("tarjetas_inicio");
+            entity.HasKey(t => t.Clave);
+            entity.Property(t => t.Clave).HasMaxLength(50);
+            entity.Property(t => t.Etiqueta).HasMaxLength(100);
+            entity.Property(t => t.Titulo).HasMaxLength(300);
+            entity.Property(t => t.Descripcion).HasMaxLength(2000);
+            entity.Property(t => t.Ruta).HasMaxLength(300);
         });
 
         modelBuilder.Entity<Usuario>(entity =>
@@ -81,9 +95,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.ToTable("textos_institucionales");
             entity.HasKey(t => t.Clave);
             entity.Property(t => t.Clave).HasMaxLength(50);
+            entity.Property(t => t.Eyebrow).HasMaxLength(200);
             entity.Property(t => t.Title).HasMaxLength(500);
             entity.Property(t => t.Description).HasMaxLength(4000);
             entity.Property(t => t.Image).HasMaxLength(1000);
+            entity.Property(t => t.LinkUrl).HasMaxLength(1000);
         });
 
         modelBuilder.Entity<HeroPrincipal>(entity =>
