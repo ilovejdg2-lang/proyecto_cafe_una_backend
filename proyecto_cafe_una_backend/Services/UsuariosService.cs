@@ -200,17 +200,14 @@ public class UsuariosService(ApplicationDbContext db)
         }
 
         var estadoSolicitado = NormalizarEstado(forzarEstado);
-        if (string.Equals(estadoSolicitado, EstadoActivo, StringComparison.OrdinalIgnoreCase))
-        {
-            throw new InvalidOperationException("Solo se permite inactivar usuarios.");
-        }
+        var nuevoEstado = estadoSolicitado ?? (EsActivo(actual.Estado) ? EstadoInactivo : EstadoActivo);
 
-        if (!EsActivo(actual.Estado))
+        if (string.Equals(actual.Estado, nuevoEstado, StringComparison.OrdinalIgnoreCase))
         {
             return Copiar(actual);
         }
 
-        actual.Estado = EstadoInactivo;
+        actual.Estado = nuevoEstado;
         await db.SaveChangesAsync();
         return Copiar(actual);
     }
