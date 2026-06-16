@@ -10,6 +10,7 @@ public class ProductosService(ApplicationDbContext db)
     private const decimal IvaRate = 0.13m;
     private const string EstadoHabilitado = "Habilitado";
     private const string EstadoDeshabilitado = "Deshabilitado";
+    private const int MaxProductosDestacados = 3;
 
     public async Task<List<Producto>> ObtenerTodosAsync() =>
         await db.Productos
@@ -26,6 +27,11 @@ public class ProductosService(ApplicationDbContext db)
     {
         ValidarDatosProducto(request.Nombre, request.Descripcion, request.PrecioNormal, request.Stock);
 
+        if (request.EsDestacado)
+        {
+            await ValidarLimiteDestacadosAsync(excluirId: null);
+        }
+
         var producto = new Producto
         {
             Nombre = request.Nombre.Trim(),
@@ -35,7 +41,8 @@ public class ProductosService(ApplicationDbContext db)
             PrecioConIVA = CalcularPrecioConIVA(request.PrecioNormal),
             Stock = request.Stock,
             Estado = NormalizarEstado(request.Estado),
-            Peso = request.Peso.Trim()
+            Peso = request.Peso.Trim(),
+            EsDestacado = request.EsDestacado
         };
 
         db.Productos.Add(producto);
@@ -100,6 +107,16 @@ public class ProductosService(ApplicationDbContext db)
         if (!string.IsNullOrWhiteSpace(cambios.Estado))
         {
             actual.Estado = NormalizarEstado(cambios.Estado);
+        }
+
+        if (cambios.EsDestacado.HasValue)
+        {
+            if (cambios.EsDestacado.Value && !actual.EsDestacado)
+            {
+                await ValidarLimiteDestacadosAsync(excluirId: actual.Id);
+            }
+
+            actual.EsDestacado = cambios.EsDestacado.Value;
         }
 
         await db.SaveChangesAsync();
@@ -168,6 +185,21 @@ public class ProductosService(ApplicationDbContext db)
 
     private static decimal CalcularPrecioConIVA(decimal precioNormal) =>
         Math.Round(precioNormal * (1 + IvaRate), 0, MidpointRounding.AwayFromZero);
+
+    private async Task ValidarLimiteDestacadosAsync(long? excluirId)
+    {
+        var query = db.Productos.Where(p => p.EsDestacado);
+        if (excluirId.HasValue)
+        {
+            query = query.Where(p => p.Id != excluirId.Value);
+        }
+
+        var destacadosActuales = await query.CountAsync();
+        if (destacadosActuales >= MaxProductosDestacados)
+        {
+            throw new InvalidOperationException($"Solo se pueden destacar hasta {MaxProductosDestacados} productos en el inicio.");
+        }
+    }
 
     private static string NormalizarEstado(string? estado) =>
         string.Equals(estado?.Trim(), EstadoDeshabilitado, StringComparison.OrdinalIgnoreCase)

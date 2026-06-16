@@ -10,6 +10,7 @@ public class CrearProductoRequest
     public int Stock { get; set; }
     public string Estado { get; set; } = "Habilitado";
     public string Peso { get; set; } = string.Empty;
+    public bool EsDestacado { get; set; }
     public List<string> ActorRoles { get; set; } = [];
 }
 
@@ -23,6 +24,7 @@ public class ActualizarProductoRequest
     public int? Stock { get; set; }
     public string? Estado { get; set; }
     public string? Peso { get; set; }
+    public bool? EsDestacado { get; set; }
     public List<string> ActorRoles { get; set; } = [];
 }
 

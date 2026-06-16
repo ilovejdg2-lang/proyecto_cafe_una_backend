@@ -14,7 +14,8 @@ public class InformacionController(
     GaleriaInstitucionalService galeriaService,
     InformacionFooterService footerService,
     InformacionNavbarService navbarService,
-    EnlaceSitioService enlaceSitioService) : ControllerBase
+    EnlaceSitioService enlaceSitioService,
+    TarjetaInicioService tarjetaInicioService) : ControllerBase
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -72,7 +73,12 @@ public class InformacionController(
         if (textoInstitucionalService.EsClaveValida(seccion))
         {
             var texto = await textoInstitucionalService.ObtenerAsync(seccion);
-            return texto is null ? NotFound() : Ok(texto);
+            if (texto is null)
+            {
+                return Ok(new TextoInstitucional { Clave = seccion.ToLowerInvariant() });
+            }
+
+            return Ok(texto);
         }
 
         return NotFound();
@@ -142,6 +148,19 @@ public class InformacionController(
         }
 
         return NoContent();
+    }
+
+    [HttpGet("tarjetas-inicio")]
+    public async Task<ActionResult<IEnumerable<TarjetaInicio>>> ObtenerTarjetasInicio()
+    {
+        return Ok(await tarjetaInicioService.ObtenerTodasAsync());
+    }
+
+    [HttpPatch("tarjetas-inicio")]
+    public async Task<ActionResult<IEnumerable<TarjetaInicio>>> ActualizarTarjetasInicio([FromBody] ActualizarTarjetasInicioRequest request)
+    {
+        var tarjetas = await tarjetaInicioService.ActualizarTodasAsync(request.Tarjetas);
+        return Ok(tarjetas);
     }
 
     [HttpGet("navbar")]
