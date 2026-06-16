@@ -93,13 +93,22 @@ public class CedulaConsultaService(
         }
     }
 
-    private bool PuedeUsarRespaldoMock(InvalidOperationException ex) =>
-        _settings.UseMockFallbackInDevelopment
-        && hostEnvironment.IsDevelopment()
-        && (ex.Message.Contains("suscripci", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("plan", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("No se pudo consultar", StringComparison.OrdinalIgnoreCase)
-            || ex.Message.Contains("No se pudo conectar", StringComparison.OrdinalIgnoreCase));
+    private bool PuedeUsarRespaldoMock(InvalidOperationException ex)
+    {
+        if (!EsErrorDeServicioExterno(ex))
+        {
+            return false;
+        }
+
+        return _settings.UseMockFallbackWhenUnavailable
+            || (_settings.UseMockFallbackInDevelopment && hostEnvironment.IsDevelopment());
+    }
+
+    private static bool EsErrorDeServicioExterno(InvalidOperationException ex) =>
+        ex.Message.Contains("suscripci", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("plan", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("No se pudo consultar", StringComparison.OrdinalIgnoreCase)
+        || ex.Message.Contains("No se pudo conectar", StringComparison.OrdinalIgnoreCase);
 
     private async Task<CedulaConsultaResponse?> ConsultarApifyAsync(string cedula, CancellationToken cancellationToken)
     {
@@ -171,7 +180,34 @@ public class CedulaConsultaService(
                 : $"{baseUrl}{ruta}";
         }
 
-        return $"{baseUrl}/cedula?cedula={Uri.EscapeDataString(cedula)}";
+        return $"{baseUrl}/consulta/{Uri.EscapeDataString(cedula)}";
+    }
+
+    private static JsonElement ExtraerDatosApify(JsonElement root)
+    {
+        if (root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object)
+        {
+            return data;
+        }
+
+        return root;
+    }
+
+    private static bool EsRespuestaApifyFallida(JsonElement root)
+    {
+        if (root.TryGetProperty("status", out var status)
+            && status.ValueKind == JsonValueKind.String)
+        {
+            var valor = status.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(valor)
+                && !valor.Equals("success", StringComparison.OrdinalIgnoreCase)
+                && !valor.Equals("ok", StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private CedulaConsultaResponse? ProcesarRespuestaApify(HttpResponseMessage response, string body, string cedula)
@@ -202,13 +238,37 @@ public class CedulaConsultaService(
             return null;
         }
 
-        if (!response.IsSuccessStatusCode)
+        if (EsRespuestaApifyFallida(root))
         {
-            logger.LogWarning("Apify TSE respondió {StatusCode}: {Body}", (int)response.StatusCode, body);
-            throw new InvalidOperationException("No se pudo consultar la cédula en este momento.");
+            var mensaje = ObtenerMensajeErrorApify(root)
+                ?? "No se pudo consultar la cédula en este momento.";
+            throw new InvalidOperationException(mensaje);
         }
 
-        return MapearRespuestaApify(root, cedula);
+        if (!response.IsSuccessStatusCode)
+        {
+            var mensaje = ObtenerMensajeErrorApify(root)
+                ?? "No se pudo consultar la cédula en este momento.";
+            logger.LogWarning("Apify TSE respondió {StatusCode}: {Body}", (int)response.StatusCode, body);
+            throw new InvalidOperationException(mensaje);
+        }
+
+        return MapearRespuestaApify(ExtraerDatosApify(root), cedula);
+    }
+
+    private static string? ObtenerMensajeErrorApify(JsonElement root)
+    {
+        if (root.TryGetProperty("message", out var messageElement)
+            && messageElement.ValueKind == JsonValueKind.String)
+        {
+            var mensaje = messageElement.GetString()?.Trim();
+            if (!string.IsNullOrWhiteSpace(mensaje))
+            {
+                return mensaje;
+            }
+        }
+
+        return null;
     }
 
     private static async Task EsperarYReservarConsultaApifyAsync(CancellationToken cancellationToken)
@@ -263,8 +323,8 @@ public class CedulaConsultaService(
     {
         var nombre = ConstruirNombre(
             ObtenerTexto(data, "nombre"),
-            ObtenerTexto(data, "apellido1"),
-            ObtenerTexto(data, "apellido2"));
+            ObtenerTexto(data, "apellido1") ?? ObtenerTexto(data, "primer_apellido"),
+            ObtenerTexto(data, "apellido2") ?? ObtenerTexto(data, "segundo_apellido"));
 
         if (string.IsNullOrWhiteSpace(nombre))
         {

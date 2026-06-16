@@ -12,7 +12,7 @@ public class CedulaConsultaSettings
     public string ApifyBaseUrl { get; set; } = "https://tse.apifycr.com/api/v2";
 
     /// <summary>
-    /// Ruta opcional relativa a ApifyBaseUrl o URL absoluta. Ej: /cedula?cedula={cedula}
+    /// Ruta opcional relativa a ApifyBaseUrl o URL absoluta. Ej: /consulta/{cedula}
     /// </summary>
     public string? ApifyConsultaPath { get; set; }
 
@@ -20,6 +20,12 @@ public class CedulaConsultaSettings
     /// Si Apify falla en Development, usa datos locales de respaldo (útil sin suscripción activa).
     /// </summary>
     public bool UseMockFallbackInDevelopment { get; set; } = true;
+
+    /// <summary>
+    /// Si Apify falla por suscripción/plan caído, usa datos de prueba en lugar de error 503.
+    /// Útil en staging; en producción real conviene tener suscripción Apify activa.
+    /// </summary>
+    public bool UseMockFallbackWhenUnavailable { get; set; } = true;
 
     public string VerifikBaseUrl { get; set; } = "https://api.verifik.co";
 }

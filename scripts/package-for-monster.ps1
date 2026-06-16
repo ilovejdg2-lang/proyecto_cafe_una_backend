@@ -48,8 +48,10 @@ $settings = [ordered]@{
         Provider                     = $cedulaProvider
         ApiKey                       = $env:CEDULA_API_KEY
         ApifyBaseUrl                 = 'https://tse.apifycr.com/api/v2'
+        ApifyConsultaPath            = '/consulta/{cedula}'
         VerifikBaseUrl               = 'https://api.verifik.co'
         UseMockFallbackInDevelopment = $false
+        UseMockFallbackWhenUnavailable = $true
     }
     Logging = [ordered]@{
         LogLevel = [ordered]@{
