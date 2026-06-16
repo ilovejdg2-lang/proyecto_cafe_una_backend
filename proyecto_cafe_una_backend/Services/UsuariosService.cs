@@ -101,6 +101,10 @@ public class UsuariosService(ApplicationDbContext db)
         }
 
         actual.Nombre = string.IsNullOrWhiteSpace(cambios.Nombre) ? actual.Nombre : cambios.Nombre.Trim();
+        if (!string.IsNullOrWhiteSpace(cambios.Nombre))
+        {
+            UsuarioValidacion.ValidarNombre(actual.Nombre);
+        }
         actual.Correo = correoSolicitado;
 
         if (!string.IsNullOrWhiteSpace(cambios.PasswordHash))
@@ -111,6 +115,7 @@ public class UsuariosService(ApplicationDbContext db)
             }
 
             ValidarPasswordActual(actual.PasswordHash, passwordActual);
+            UsuarioValidacion.ValidarPassword(cambios.PasswordHash);
             actual.PasswordHash = cambios.PasswordHash;
         }
 
@@ -136,6 +141,7 @@ public class UsuariosService(ApplicationDbContext db)
         }
 
         var nombre = string.IsNullOrWhiteSpace(request.Nombre) ? actual.Nombre : request.Nombre.Trim();
+        UsuarioValidacion.ValidarNombre(nombre);
 
         if (!string.Equals(nombre, actual.Nombre, StringComparison.OrdinalIgnoreCase))
         {
@@ -164,10 +170,7 @@ public class UsuariosService(ApplicationDbContext db)
 
     public async Task<bool> CambiarPasswordAsync(int id, string passwordActual, string passwordNueva)
     {
-        if (string.IsNullOrWhiteSpace(passwordNueva) || passwordNueva.Length < 6)
-        {
-            throw new InvalidOperationException("La contraseña nueva debe tener al menos 6 caracteres.");
-        }
+        UsuarioValidacion.ValidarPassword(passwordNueva);
 
         var actual = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == id);
         if (actual is null)
