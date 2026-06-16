@@ -14,7 +14,7 @@ public class PerfilService(
     private static readonly TimeSpan EmailCooldown = TimeSpan.FromMinutes(3);
     private const string MensajeEsperaCorreo = "No se puede mandar un correo seguido. Espera 3 minutos.";
 
-    public async Task<CambioCorreoResult> SolicitarCambioCorreoAsync(int usuarioId, string nuevoCorreo)
+    public async Task<CambioCorreoResult> SolicitarCambioCorreoAsync(int usuarioId, string nuevoCorreo, string passwordActual)
     {
         var correo = nuevoCorreo.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(correo))
@@ -22,11 +22,13 @@ public class PerfilService(
             throw new InvalidOperationException("El correo nuevo es obligatorio.");
         }
 
-        var usuario = await db.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
+        var usuario = await db.Usuarios.FirstOrDefaultAsync(u => u.Id == usuarioId);
         if (usuario is null)
         {
             throw new InvalidOperationException("Usuario no encontrado.");
         }
+
+        UsuarioValidacion.ValidarPasswordActual(usuario.PasswordHash, passwordActual);
 
         if (string.Equals(usuario.Correo, correo, StringComparison.OrdinalIgnoreCase))
         {

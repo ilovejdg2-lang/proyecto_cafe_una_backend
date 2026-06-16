@@ -65,7 +65,10 @@ public class PerfilController(UsuariosService usuariosService, PerfilService per
 
         try
         {
-            var result = await perfilService.SolicitarCambioCorreoAsync(userId.Value, request.NuevoCorreo);
+            var result = await perfilService.SolicitarCambioCorreoAsync(
+                userId.Value,
+                request.NuevoCorreo,
+                request.PasswordActual);
             if (!string.IsNullOrWhiteSpace(result.MensajeError))
             {
                 return BadRequest(new { message = result.MensajeError });
