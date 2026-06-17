@@ -24,7 +24,16 @@ $jwtAudience = if ([string]::IsNullOrWhiteSpace($env:JWT_AUDIENCE)) { 'cafe-una-
 $smtpHost = if ([string]::IsNullOrWhiteSpace($env:SMTP_HOST)) { 'smtp.gmail.com' } else { $env:SMTP_HOST }
 $smtpPort = if ([string]::IsNullOrWhiteSpace($env:SMTP_PORT)) { 587 } else { [int]$env:SMTP_PORT }
 $smtpFromName = if ([string]::IsNullOrWhiteSpace($env:SMTP_FROM_NAME)) { 'Cafe UNA' } else { $env:SMTP_FROM_NAME }
-$cedulaProvider = if ([string]::IsNullOrWhiteSpace($env:CEDULA_API_KEY)) { 'None' } else { 'Apify' }
+$cedulaProvider = if (-not [string]::IsNullOrWhiteSpace($env:CEDULA_PROVIDER)) {
+    $env:CEDULA_PROVIDER.Trim()
+} else {
+    'GoMeta'
+}
+$goMetaBaseUrl = if ([string]::IsNullOrWhiteSpace($env:CEDULA_GOMETA_BASE_URL)) {
+    'https://apis.gometa.org/cedulas'
+} else {
+    $env:CEDULA_GOMETA_BASE_URL.Trim().TrimEnd('/')
+}
 
 $settings = [ordered]@{
     ConnectionStrings = [ordered]@{
@@ -45,13 +54,8 @@ $settings = [ordered]@{
         FromName  = $smtpFromName
     }
     CedulaConsulta = [ordered]@{
-        Provider                     = $cedulaProvider
-        ApiKey                       = $env:CEDULA_API_KEY
-        ApifyBaseUrl                 = 'https://tse.apifycr.com/api/v2'
-        ApifyConsultaPath            = '/consulta/{cedula}'
-        VerifikBaseUrl               = 'https://api.verifik.co'
-        UseMockFallbackInDevelopment = $false
-        UseMockFallbackWhenUnavailable = $true
+        Provider      = $cedulaProvider
+        GoMetaBaseUrl = $goMetaBaseUrl
     }
     Logging = [ordered]@{
         LogLevel = [ordered]@{
