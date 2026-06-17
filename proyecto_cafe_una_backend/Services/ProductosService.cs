@@ -30,6 +30,7 @@ public class ProductosService(ApplicationDbContext db)
         if (request.EsDestacado)
         {
             await ValidarLimiteDestacadosAsync(excluirId: null);
+            ValidarProductoDestacable(NormalizarEstado(request.Estado), request.Stock);
         }
 
         var producto = new Producto
@@ -96,7 +97,17 @@ public class ProductosService(ApplicationDbContext db)
                 throw new InvalidOperationException("El stock no puede ser negativo.");
             }
 
+            if (cambios.Stock.Value <= 0 && actual.EsDestacado)
+            {
+                throw new InvalidOperationException("Quita el producto de destacados antes de dejar el stock en cero.");
+            }
+
             actual.Stock = cambios.Stock.Value;
+
+            if (actual.Stock <= 0)
+            {
+                actual.EsDestacado = false;
+            }
         }
 
         if (cambios.Peso is not null)
@@ -106,7 +117,13 @@ public class ProductosService(ApplicationDbContext db)
 
         if (!string.IsNullOrWhiteSpace(cambios.Estado))
         {
-            actual.Estado = NormalizarEstado(cambios.Estado);
+            var nuevoEstado = NormalizarEstado(cambios.Estado);
+            if (nuevoEstado == EstadoDeshabilitado && actual.EsDestacado)
+            {
+                throw new InvalidOperationException("Quita el producto de destacados antes de deshabilitarlo.");
+            }
+
+            actual.Estado = nuevoEstado;
         }
 
         if (cambios.EsDestacado.HasValue)
@@ -114,6 +131,7 @@ public class ProductosService(ApplicationDbContext db)
             if (cambios.EsDestacado.Value && !actual.EsDestacado)
             {
                 await ValidarLimiteDestacadosAsync(excluirId: actual.Id);
+                ValidarProductoDestacable(actual.Estado, actual.Stock);
             }
 
             actual.EsDestacado = cambios.EsDestacado.Value;
@@ -169,6 +187,10 @@ public class ProductosService(ApplicationDbContext db)
                 }
 
                 producto.Stock -= solicitud.Units;
+                if (producto.Stock <= 0)
+                {
+                    producto.EsDestacado = false;
+                }
                 actualizados.Add(producto);
             }
 
@@ -198,6 +220,19 @@ public class ProductosService(ApplicationDbContext db)
         if (destacadosActuales >= MaxProductosDestacados)
         {
             throw new InvalidOperationException($"Solo se pueden destacar hasta {MaxProductosDestacados} productos en el inicio.");
+        }
+    }
+
+    private static void ValidarProductoDestacable(string estado, int stock)
+    {
+        if (estado == EstadoDeshabilitado)
+        {
+            throw new InvalidOperationException("No se puede destacar un producto deshabilitado.");
+        }
+
+        if (stock <= 0)
+        {
+            throw new InvalidOperationException("No se puede destacar un producto sin stock.");
         }
     }
 
