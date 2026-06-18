@@ -7,6 +7,8 @@ public class HeroPrincipal
     public string Title { get; set; } = string.Empty;
     public string Subtitle { get; set; } = string.Empty;
     public string PrimaryButtonText { get; set; } = string.Empty;
+    public string PrimaryButtonUrl { get; set; } = string.Empty;
     public string ButtonText { get; set; } = string.Empty;
+    public string ButtonUrl { get; set; } = string.Empty;
     public string BackgroundImage { get; set; } = string.Empty;
 }
