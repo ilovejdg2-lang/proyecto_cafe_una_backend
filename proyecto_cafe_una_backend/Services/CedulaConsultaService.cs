@@ -55,11 +55,6 @@ public class CedulaConsultaService(
             {
                 Cedula = cedula,
                 Nombre = "Maria Del Mar Diaz Ruiz",
-                Provincia = "Guanacaste",
-                Canton = "Nicoya",
-                Distrito = "Curime",
-                Residencia = "Curime, Nicoya, Guanacaste",
-                FechaNacimiento = "25/10/2006"
             };
         }
 
@@ -67,11 +62,6 @@ public class CedulaConsultaService(
         {
             Cedula = cedula,
             Nombre = "Nombre De Prueba Apellido1 Apellido2",
-            Residencia = "Distrito, Canton, Provincia",
-            Provincia = "Provincia",
-            Canton = "Canton",
-            Distrito = "Distrito",
-            FechaNacimiento = "01/01/2000"
         };
     }
 
@@ -331,19 +321,10 @@ public class CedulaConsultaService(
             return null;
         }
 
-        var provincia = FormatearUbicacion(ObtenerTexto(data, "provincia"));
-        var canton = FormatearUbicacion(ObtenerTexto(data, "canton"));
-        var distrito = FormatearUbicacion(ObtenerTexto(data, "distrito"));
-
         return new CedulaConsultaResponse
         {
             Cedula = ObtenerTexto(data, "cedula") ?? cedula,
             Nombre = nombre,
-            Provincia = provincia,
-            Canton = canton,
-            Distrito = distrito,
-            Residencia = ConstruirResidencia(distrito, canton, provincia),
-            FechaNacimiento = ObtenerTexto(data, "fecha_nacimiento")
         };
     }
 
@@ -433,17 +414,5 @@ public class CedulaConsultaService(
     {
         var texto = valor.Trim().ToLowerInvariant();
         return CultureInfo.CurrentCulture.TextInfo.ToTitleCase(texto);
-    }
-
-    private static string? FormatearUbicacion(string? valor) =>
-        string.IsNullOrWhiteSpace(valor) ? null : FormatearNombre(valor);
-
-    private static string? ConstruirResidencia(string? distrito, string? canton, string? provincia)
-    {
-        var partes = new[] { distrito, canton, provincia }
-            .Where(p => !string.IsNullOrWhiteSpace(p))
-            .ToList();
-
-        return partes.Count == 0 ? null : string.Join(", ", partes);
     }
 }
