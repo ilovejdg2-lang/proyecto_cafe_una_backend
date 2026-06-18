@@ -72,6 +72,11 @@ public class TarjetaInicioService(ApplicationDbContext db)
             {
                 actual.Ruta = string.IsNullOrWhiteSpace(item.Ruta) ? null : item.Ruta.Trim();
             }
+
+            if (item.TextoBoton is not null)
+            {
+                actual.TextoBoton = item.TextoBoton.Trim();
+            }
         }
 
         await db.SaveChangesAsync();

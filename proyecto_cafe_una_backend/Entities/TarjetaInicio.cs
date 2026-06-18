@@ -7,5 +7,6 @@ public class TarjetaInicio
     public string Titulo { get; set; } = string.Empty;
     public string Descripcion { get; set; } = string.Empty;
     public string? Ruta { get; set; }
+    public string TextoBoton { get; set; } = string.Empty;
     public int Orden { get; set; }
 }

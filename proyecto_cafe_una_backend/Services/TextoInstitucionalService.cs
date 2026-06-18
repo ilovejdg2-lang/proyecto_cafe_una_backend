@@ -74,6 +74,11 @@ public class TextoInstitucionalService(ApplicationDbContext db)
             actual.LinkUrl = string.IsNullOrWhiteSpace(cambios.LinkUrl) ? null : cambios.LinkUrl.Trim();
         }
 
+        if (cambios.LinkText is not null)
+        {
+            actual.LinkText = string.IsNullOrWhiteSpace(cambios.LinkText) ? null : cambios.LinkText.Trim();
+        }
+
         await db.SaveChangesAsync();
         return Copiar(actual);
     }
@@ -85,6 +90,7 @@ public class TextoInstitucionalService(ApplicationDbContext db)
         Title = texto.Title,
         Description = texto.Description,
         Image = texto.Image,
-        LinkUrl = texto.LinkUrl
+        LinkUrl = texto.LinkUrl,
+        LinkText = texto.LinkText
     };
 }
