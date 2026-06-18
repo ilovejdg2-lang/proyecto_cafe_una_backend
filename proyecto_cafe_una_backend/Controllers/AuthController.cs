@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using proyecto_cafe_una_backend.Entities;
@@ -9,7 +10,10 @@ namespace proyecto_cafe_una_backend.Controllers;
 
 [ApiController]
 [Route("api/auth")]
-public class AuthController(AuthService authService, JwtSettings jwtSettings) : ControllerBase
+public class AuthController(
+    AuthService authService,
+    UsuariosService usuariosService,
+    JwtSettings jwtSettings) : ControllerBase
 {
     [HttpPost("login")]
     [AllowAnonymous]
@@ -22,6 +26,26 @@ public class AuthController(AuthService authService, JwtSettings jwtSettings) : 
 
         var usuario = await authService.AutenticarAsync(credentials.Identifier, credentials.Password);
         if (usuario is null)
+        {
+            return Unauthorized();
+        }
+
+        var token = TokenGenerator.GenerateToken(usuario, jwtSettings);
+        return Ok(new LoginResponse { Token = token });
+    }
+
+    [HttpPost("refresh")]
+    [Authorize]
+    public async Task<ActionResult<LoginResponse>> Refresh()
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub");
+        if (!int.TryParse(sub, out var id))
+        {
+            return Unauthorized();
+        }
+
+        var usuario = await usuariosService.ObtenerPorIdAsync(id);
+        if (usuario is null || !string.Equals(usuario.Estado, "activo", StringComparison.OrdinalIgnoreCase))
         {
             return Unauthorized();
         }
