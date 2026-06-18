@@ -31,6 +31,11 @@ public class HeroService(ApplicationDbContext db)
             db.HeroPrincipal.Add(hero);
         }
 
+        if (cambios.Eyebrow is not null)
+        {
+            hero.Eyebrow = cambios.Eyebrow.Trim();
+        }
+
         if (!string.IsNullOrWhiteSpace(cambios.Title))
         {
             hero.Title = cambios.Title.Trim();
@@ -39,6 +44,11 @@ public class HeroService(ApplicationDbContext db)
         if (!string.IsNullOrWhiteSpace(cambios.Subtitle))
         {
             hero.Subtitle = cambios.Subtitle.Trim();
+        }
+
+        if (cambios.PrimaryButtonText is not null)
+        {
+            hero.PrimaryButtonText = cambios.PrimaryButtonText.Trim();
         }
 
         if (cambios.ButtonText is not null)
@@ -58,8 +68,10 @@ public class HeroService(ApplicationDbContext db)
     private static HeroPrincipal Copiar(HeroPrincipal hero) => new()
     {
         Id = hero.Id,
+        Eyebrow = hero.Eyebrow,
         Title = hero.Title,
         Subtitle = hero.Subtitle,
+        PrimaryButtonText = hero.PrimaryButtonText,
         ButtonText = hero.ButtonText,
         BackgroundImage = hero.BackgroundImage
     };
