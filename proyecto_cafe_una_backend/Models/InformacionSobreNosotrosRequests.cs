@@ -7,6 +7,7 @@ public class ActualizarTextoInstitucionalRequest
     public string? Description { get; set; }
     public string? Image { get; set; }
     public string? LinkUrl { get; set; }
+    public string? LinkText { get; set; }
 }
 
 public class CrearGaleriaInstitucionalItemRequest

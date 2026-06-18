@@ -8,4 +8,5 @@ public class TextoInstitucional
     public string Description { get; set; } = string.Empty;
     public string? Image { get; set; }
     public string? LinkUrl { get; set; }
+    public string? LinkText { get; set; }
 }

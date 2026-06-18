@@ -6,6 +6,8 @@ public class ActualizarHeroRequest
     public string? Title { get; set; }
     public string? Subtitle { get; set; }
     public string? PrimaryButtonText { get; set; }
+    public string? PrimaryButtonUrl { get; set; }
     public string? ButtonText { get; set; }
+    public string? ButtonUrl { get; set; }
     public string? BackgroundImage { get; set; }
 }

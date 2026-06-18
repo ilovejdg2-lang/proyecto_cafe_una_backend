@@ -47,6 +47,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(t => t.Titulo).HasMaxLength(300);
             entity.Property(t => t.Descripcion).HasMaxLength(2000);
             entity.Property(t => t.Ruta).HasMaxLength(300);
+            entity.Property(t => t.TextoBoton).HasMaxLength(200);
         });
 
         modelBuilder.Entity<Usuario>(entity =>
@@ -100,6 +101,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(t => t.Description).HasMaxLength(4000);
             entity.Property(t => t.Image).HasMaxLength(1000);
             entity.Property(t => t.LinkUrl).HasMaxLength(1000);
+            entity.Property(t => t.LinkText).HasMaxLength(200);
         });
 
         modelBuilder.Entity<HeroPrincipal>(entity =>
@@ -110,7 +112,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(h => h.Title).HasMaxLength(500);
             entity.Property(h => h.Subtitle).HasMaxLength(1000);
             entity.Property(h => h.PrimaryButtonText).HasMaxLength(200);
+            entity.Property(h => h.PrimaryButtonUrl).HasMaxLength(500);
             entity.Property(h => h.ButtonText).HasMaxLength(200);
+            entity.Property(h => h.ButtonUrl).HasMaxLength(500);
             entity.Property(h => h.BackgroundImage).HasMaxLength(1000);
         });
 

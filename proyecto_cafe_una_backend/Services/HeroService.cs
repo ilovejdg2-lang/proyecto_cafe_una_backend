@@ -51,9 +51,19 @@ public class HeroService(ApplicationDbContext db)
             hero.PrimaryButtonText = cambios.PrimaryButtonText.Trim();
         }
 
+        if (cambios.PrimaryButtonUrl is not null)
+        {
+            hero.PrimaryButtonUrl = cambios.PrimaryButtonUrl.Trim();
+        }
+
         if (cambios.ButtonText is not null)
         {
             hero.ButtonText = cambios.ButtonText.Trim();
+        }
+
+        if (cambios.ButtonUrl is not null)
+        {
+            hero.ButtonUrl = cambios.ButtonUrl.Trim();
         }
 
         if (cambios.BackgroundImage is not null)
@@ -72,7 +82,9 @@ public class HeroService(ApplicationDbContext db)
         Title = hero.Title,
         Subtitle = hero.Subtitle,
         PrimaryButtonText = hero.PrimaryButtonText,
+        PrimaryButtonUrl = hero.PrimaryButtonUrl,
         ButtonText = hero.ButtonText,
+        ButtonUrl = hero.ButtonUrl,
         BackgroundImage = hero.BackgroundImage
     };
 }
