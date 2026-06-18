@@ -3,7 +3,6 @@ using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using proyecto_cafe_una_backend.Models;
 
@@ -12,12 +11,8 @@ namespace proyecto_cafe_una_backend.Services;
 public class CedulaConsultaService(
     HttpClient httpClient,
     IOptions<CedulaConsultaSettings> options,
-    IHostEnvironment hostEnvironment,
     ILogger<CedulaConsultaService> logger)
 {
-    private static readonly SemaphoreSlim ApifyRateLock = new(1, 1);
-    private static DateTime _ultimaConsultaApifyUtc = DateTime.MinValue;
-
     private readonly CedulaConsultaSettings _settings = options.Value;
 
     public async Task<CedulaConsultaResponse?> ConsultarAsync(string numero, CancellationToken cancellationToken = default)
@@ -28,13 +23,11 @@ public class CedulaConsultaService(
             throw new ArgumentException("Ingrese una cédula válida de 9 dígitos.");
         }
 
-        var provider = (_settings.Provider ?? "None").Trim();
+        var provider = (_settings.Provider ?? "GoMeta").Trim();
 
         return provider.ToLowerInvariant() switch
         {
-            "mock" => ConsultarMock(cedula),
-            "apify" => await ConsultarApifyConRespaldoAsync(cedula, cancellationToken),
-            "verifik" => await ConsultarVerifikAsync(cedula, cancellationToken),
+            "gometa" => await ConsultarGoMetaAsync(cedula, cancellationToken),
             "none" or "" => throw new InvalidOperationException(
                 "La consulta de cédula no está configurada. Agregue CedulaConsulta en appsettings."),
             _ => throw new InvalidOperationException($"Proveedor de cédula desconocido: {provider}.")
@@ -47,6 +40,7 @@ public class CedulaConsultaService(
         return soloDigitos.Length == 9 ? soloDigitos : null;
     }
 
+<<<<<<< HEAD
     private static CedulaConsultaResponse ConsultarMock(string cedula)
     {
         if (cedula == "504680314")
@@ -66,23 +60,17 @@ public class CedulaConsultaService(
     }
 
     private async Task<CedulaConsultaResponse?> ConsultarApifyConRespaldoAsync(
+=======
+    private async Task<CedulaConsultaResponse?> ConsultarGoMetaAsync(
+>>>>>>> origin/development
         string cedula,
         CancellationToken cancellationToken)
     {
-        try
-        {
-            return await ConsultarApifyAsync(cedula, cancellationToken);
-        }
-        catch (InvalidOperationException ex) when (PuedeUsarRespaldoMock(ex))
-        {
-            logger.LogWarning(
-                "Apify no disponible ({Mensaje}). Usando respaldo local para cédula {Cedula}.",
-                ex.Message,
-                cedula);
-            return ConsultarMock(cedula);
-        }
-    }
+        var baseUrl = string.IsNullOrWhiteSpace(_settings.GoMetaBaseUrl)
+            ? "https://apis.gometa.org/cedulas"
+            : _settings.GoMetaBaseUrl.TrimEnd('/');
 
+<<<<<<< HEAD
     private bool PuedeUsarRespaldoMock(InvalidOperationException ex)
     {
         if (!EsErrorDeServicioExterno(ex))
@@ -337,13 +325,21 @@ public class CedulaConsultaService(
             : _settings.VerifikBaseUrl.TrimEnd('/');
 
         var url = $"{baseUrl}/v2/cr/cedula?documentType=CCCR&documentNumber={Uri.EscapeDataString(cedula)}";
+=======
+        var url = $"{baseUrl}/{Uri.EscapeDataString(cedula)}";
+>>>>>>> origin/development
 
         using var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _settings.ApiKey.Trim());
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
 
         using var response = await httpClient.SendAsync(request, cancellationToken);
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            throw new InvalidOperationException(
+                "Demasiadas consultas de cédula. Espere unos minutos e intente de nuevo.");
+        }
 
         if (response.StatusCode == HttpStatusCode.NotFound)
         {
@@ -352,38 +348,109 @@ public class CedulaConsultaService(
 
         if (!response.IsSuccessStatusCode)
         {
-            logger.LogWarning("Verifik respondió {StatusCode}: {Body}", (int)response.StatusCode, body);
+            logger.LogWarning("GoMeta respondió {StatusCode}: {Body}", (int)response.StatusCode, body);
             throw new InvalidOperationException("No se pudo consultar la cédula en este momento.");
         }
 
         using var document = JsonDocument.Parse(body);
-        if (!document.RootElement.TryGetProperty("data", out var data))
+        return MapearRespuestaGoMeta(document.RootElement, cedula);
+    }
+
+    private CedulaConsultaResponse? MapearRespuestaGoMeta(JsonElement root, string cedula)
+    {
+        if (root.TryGetProperty("resultcount", out var countElement)
+            && countElement.ValueKind == JsonValueKind.Number
+            && countElement.GetInt32() == 0)
         {
             return null;
         }
 
-        var nombre = ObtenerTexto(data, "fullName")
-            ?? ConstruirNombre(ObtenerTexto(data, "firstName"), ObtenerTexto(data, "lastName"), null);
+        if (!root.TryGetProperty("results", out var results)
+            || results.ValueKind != JsonValueKind.Array
+            || results.GetArrayLength() == 0)
+        {
+            var nombreRaiz = ObtenerTexto(root, "nombre");
+            if (string.IsNullOrWhiteSpace(nombreRaiz))
+            {
+                return null;
+            }
+
+            return new CedulaConsultaResponse
+            {
+                Cedula = ObtenerTexto(root, "cedula") ?? cedula,
+                Nombre = FormatearNombreDesdeApellidosPrimero(nombreRaiz)
+            };
+        }
+
+        var persona = SeleccionarPersonaFisicaGoMeta(results, cedula);
+        if (persona is null)
+        {
+            return null;
+        }
+
+        var nombre = ConstruirNombre(
+            ObtenerTexto(persona.Value, "firstname") ?? ObtenerTexto(persona.Value, "firstname1"),
+            ObtenerTexto(persona.Value, "lastname1"),
+            ObtenerTexto(persona.Value, "lastname2"));
 
         if (string.IsNullOrWhiteSpace(nombre))
         {
-            return null;
+            var nombreCompleto = ObtenerTexto(persona.Value, "fullname") ?? ObtenerTexto(root, "nombre");
+            if (string.IsNullOrWhiteSpace(nombreCompleto))
+            {
+                return null;
+            }
+
+            nombre = FormatearNombreDesdeApellidosPrimero(nombreCompleto);
         }
 
         return new CedulaConsultaResponse
         {
-            Cedula = ObtenerTexto(data, "documentNumber") ?? cedula,
-            Nombre = FormatearNombre(nombre)
+            Cedula = ObtenerTexto(persona.Value, "cedula") ?? ObtenerTexto(root, "cedula") ?? cedula,
+            Nombre = nombre
         };
     }
 
-    private void AsegurarApiKeyConfigurada()
+    private static JsonElement? SeleccionarPersonaFisicaGoMeta(JsonElement results, string cedula)
     {
-        if (string.IsNullOrWhiteSpace(_settings.ApiKey))
+        JsonElement? coincidenciaExacta = null;
+        JsonElement? primeraFisica = null;
+
+        foreach (var item in results.EnumerateArray())
         {
-            throw new InvalidOperationException(
-                "Falta CedulaConsulta:ApiKey. Regístrese en Apify Connect TSE y agregue la clave en appsettings.");
+            var tipo = ObtenerTexto(item, "guess_type") ?? ObtenerTexto(item, "type");
+            var esFisica = string.Equals(tipo, "FISICA", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(tipo, "F", StringComparison.OrdinalIgnoreCase);
+
+            if (!esFisica)
+            {
+                continue;
+            }
+
+            primeraFisica ??= item;
+
+            var cedulaResultado = ObtenerTexto(item, "cedula");
+            if (string.Equals(cedulaResultado, cedula, StringComparison.Ordinal))
+            {
+                coincidenciaExacta = item;
+                break;
+            }
         }
+
+        return coincidenciaExacta ?? primeraFisica;
+    }
+
+    private static string FormatearNombreDesdeApellidosPrimero(string valor)
+    {
+        var partes = valor.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (partes.Length <= 2)
+        {
+            return FormatearNombre(valor);
+        }
+
+        var apellidos = partes.Take(2).ToArray();
+        var nombres = partes.Skip(2).ToArray();
+        return ConstruirNombre(string.Join(' ', nombres), apellidos.ElementAtOrDefault(0), apellidos.ElementAtOrDefault(1));
     }
 
     private static string? ObtenerTexto(JsonElement element, string propertyName)

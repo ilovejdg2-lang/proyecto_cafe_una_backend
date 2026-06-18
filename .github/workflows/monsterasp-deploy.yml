@@ -23,7 +23,8 @@ jobs:
       SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
       SMTP_FROM_EMAIL: ${{ secrets.SMTP_FROM_EMAIL }}
       SMTP_FROM_NAME: ${{ secrets.SMTP_FROM_NAME }}
-      CEDULA_API_KEY: ${{ secrets.CEDULA_API_KEY }}
+      CEDULA_PROVIDER: ${{ secrets.CEDULA_PROVIDER }}
+      CEDULA_GOMETA_BASE_URL: ${{ secrets.CEDULA_GOMETA_BASE_URL }}
       SITE_URL: ${{ secrets.SITE_URL }}
       WEBSITE_NAME: ${{ secrets.WEBSITE_NAME }}
       SERVER_COMPUTER_NAME: ${{ secrets.SERVER_COMPUTER_NAME }}
