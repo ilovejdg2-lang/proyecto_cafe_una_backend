@@ -92,6 +92,7 @@ using (var scope = app.Services.CreateScope())
 
     try
     {
+        await HeroSchemaInitializer.EnsureAsync(db, logger);
         await db.Database.MigrateAsync();
         logger.LogInformation("Conexion a Supabase establecida correctamente.");
     }
