@@ -106,8 +106,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         {
             entity.ToTable("hero_principal");
             entity.HasKey(h => h.Id);
+            entity.Property(h => h.Eyebrow).HasMaxLength(200);
             entity.Property(h => h.Title).HasMaxLength(500);
             entity.Property(h => h.Subtitle).HasMaxLength(1000);
+            entity.Property(h => h.PrimaryButtonText).HasMaxLength(200);
             entity.Property(h => h.ButtonText).HasMaxLength(200);
             entity.Property(h => h.BackgroundImage).HasMaxLength(1000);
         });
